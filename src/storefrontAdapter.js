@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = '';
+const DEFAULT_BASE_URL = 'http://yccfmd4h13a1y6hi691si73r.13.61.22.39.sslip.io';
 
 function envBaseUrl() {
   try {
