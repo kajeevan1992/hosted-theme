@@ -19,7 +19,7 @@ export const checkout = {
 };
 
 export const artwork = {
-  upload: (file) => storefront.artwork?.upload?.(file),
+  upload: (file, meta = {}) => storefront.artwork?.upload?.({ file, ...meta }),
 };
 
 export const customer = {
@@ -28,3 +28,13 @@ export const customer = {
     get: (id) => storefront.customer?.orders?.get?.(id),
   }
 };
+
+// Backward-compatible named exports used by existing theme screens.
+export const createOrder = (data) => checkout.createOrder(data);
+export const uploadArtwork = (file, meta = {}) => artwork.upload(file, meta);
+export const listProducts = (params) => products.list(params);
+export const getProduct = (id) => products.get(id);
+export const getCart = () => cart.get();
+export const addToCart = (item) => cart.add(item);
+export const updateCart = (item) => cart.update(item);
+export const removeFromCart = (id) => cart.remove(id);
