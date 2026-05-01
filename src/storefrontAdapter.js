@@ -57,9 +57,13 @@ export function installStorefrontAdapter() {
     },
     products: {
       ...existing.products,
-      list: (params = {}) => request(`/api/internal/catalog/products${toQuery(params)}`),
-      get: (idOrSlug) => request(`/api/internal/catalog/products${toQuery({ slug: idOrSlug, id: idOrSlug })}`),
-      search: (q) => request(`/api/internal/catalog/products${toQuery({ q })}`),
+      list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery(params)}`),
+      get: (idOrSlug) => request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, id: idOrSlug })}`),
+      search: (q) => request(`/api/internal/catalog/storefront-products${toQuery({ q })}`),
+    },
+    rules: {
+      ...(existing.rules || {}),
+      evaluate: (data = {}) => request('/api/internal/catalog/evaluate-rules', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
     cart: {
       ...existing.cart,
