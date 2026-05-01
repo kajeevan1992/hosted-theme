@@ -1,7 +1,15 @@
 const DEFAULT_BASE_URL = '';
 
+function envBaseUrl() {
+  try {
+    return import.meta?.env?.VITE_API_URL || import.meta?.env?.VITE_BACKEND_URL || '';
+  } catch {
+    return '';
+  }
+}
+
 function getBaseUrl() {
-  const configured = window.__STORE_FRONT_INTERNAL_BASE_URL__ || window.__SAAS_INTERNAL_BASE_URL__ || DEFAULT_BASE_URL;
+  const configured = window.__STORE_FRONT_INTERNAL_BASE_URL__ || window.__SAAS_INTERNAL_BASE_URL__ || envBaseUrl() || DEFAULT_BASE_URL;
   return String(configured || '').replace(/\/$/, '');
 }
 
@@ -23,6 +31,7 @@ async function request(path, options = {}) {
     const error = new Error(message);
     error.status = response.status;
     error.payload = payload;
+    error.url = url;
     throw error;
   }
   return payload.data ?? payload;
@@ -42,6 +51,10 @@ export function installStorefrontAdapter() {
 
   window.storefront = {
     ...existing,
+    _config: {
+      baseUrl: getBaseUrl(),
+      mode: getBaseUrl() ? 'external-backend' : 'same-origin',
+    },
     products: {
       ...existing.products,
       list: (params = {}) => request(`/api/internal/catalog/products${toQuery(params)}`),
