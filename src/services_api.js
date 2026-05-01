@@ -22,6 +22,17 @@ export const products = {
   search: (q) => sf().products?.search?.(q),
 };
 
+export const rules = {
+  evaluate: (data) => sf().rules?.evaluate?.(data),
+};
+
+export async function evaluateProductRules(data = {}) {
+  if (!sf().rules?.evaluate) {
+    return { ok: true, blocked: false, selections: data.selections || {}, messages: [], disabledValues: [], hiddenOptions: [], priceAdjustments: [] };
+  }
+  return sf().rules.evaluate(data);
+}
+
 export const cart = {
   get: () => sf().cart?.get?.(),
   add: (item) => sf().cart?.add?.(item),
@@ -83,6 +94,7 @@ export const getOrder = (id) => customer.orders.get(id);
 
 export default {
   products,
+  rules,
   cart,
   checkout,
   artwork,
@@ -93,4 +105,5 @@ export default {
   uploadArtwork,
   getOrders,
   getOrder,
+  evaluateProductRules,
 };
