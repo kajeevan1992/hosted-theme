@@ -38,3 +38,5 @@ export const getCart = () => cart.get();
 export const addToCart = (item) => cart.add(item);
 export const updateCart = (item) => cart.update(item);
 export const removeFromCart = (id) => cart.remove(id);
+export const getOrders = () => customer.orders.list();
+export const getOrder = (id) => customer.orders.get(id);
