@@ -1,42 +1,96 @@
 // Hosted theme service layer (internal SaaS)
-const storefront = window.storefront || {};
+// Keep this file UI-compatible: old screens import named helpers, newer code can use grouped services.
+
+function sf() {
+  return window.storefront || {};
+}
+
+function asArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.orders)) return payload.orders;
+  if (Array.isArray(payload?.data?.orders)) return payload.data.orders;
+  if (Array.isArray(payload?.finalOrders) || Array.isArray(payload?.draftOrders)) return [...(payload.finalOrders || []), ...(payload.draftOrders || [])];
+  if (Array.isArray(payload?.data?.finalOrders) || Array.isArray(payload?.data?.draftOrders)) return [...(payload.data.finalOrders || []), ...(payload.data.draftOrders || [])];
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  return [];
+}
 
 export const products = {
-  list: () => storefront.products?.list?.(),
-  get: (id) => storefront.products?.get?.(id),
-  search: (q) => storefront.products?.search?.(q),
+  list: (params) => sf().products?.list?.(params),
+  get: (id) => sf().products?.get?.(id),
+  search: (q) => sf().products?.search?.(q),
 };
 
 export const cart = {
-  get: () => storefront.cart?.get?.(),
-  add: (item) => storefront.cart?.add?.(item),
-  update: (item) => storefront.cart?.update?.(item),
-  remove: (id) => storefront.cart?.remove?.(id),
+  get: () => sf().cart?.get?.(),
+  add: (item) => sf().cart?.add?.(item),
+  update: (item) => sf().cart?.update?.(item),
+  remove: (id) => sf().cart?.remove?.(id),
+  clear: () => sf().cart?.clear?.(),
 };
 
 export const checkout = {
-  createOrder: (data) => storefront.checkout?.createOrder?.(data),
+  precheck: () => sf().checkout?.precheck?.(),
+  createDraft: (data) => sf().checkout?.createDraft?.(data),
+  createOrder: (data) => sf().checkout?.createOrder?.(data),
+  finalise: (data) => sf().checkout?.finalise?.(data),
 };
 
 export const artwork = {
-  upload: (file, meta = {}) => storefront.artwork?.upload?.({ file, ...meta }),
+  upload: (file, meta = {}) => sf().artwork?.upload?.({ file, ...meta }),
+  preflight: (data) => sf().artwork?.preflight?.(data),
+};
+
+export const payment = {
+  update: (data) => sf().payment?.update?.(data),
 };
 
 export const customer = {
   orders: {
-    list: () => storefront.customer?.orders?.list?.(),
-    get: (id) => storefront.customer?.orders?.get?.(id),
+    list: (params) => sf().customer?.orders?.list?.(params),
+    get: (id) => sf().customer?.orders?.get?.(id),
   }
+};
+
+export const health = {
+  get: () => sf().health?.get?.(),
 };
 
 // Backward-compatible named exports used by existing theme screens.
 export const createOrder = (data) => checkout.createOrder(data);
 export const uploadArtwork = (file, meta = {}) => artwork.upload(file, meta);
+export const runPreflight = (data) => artwork.preflight(data);
+export const createDraftOrder = (data) => checkout.createDraft(data);
+export const finaliseOrder = (data) => checkout.finalise(data);
+export const updatePayment = (data) => payment.update(data);
+export const getHealth = () => health.get();
+
 export const listProducts = (params) => products.list(params);
+export const getProducts = (params) => products.list(params);
 export const getProduct = (id) => products.get(id);
+export const searchProducts = (q) => products.search(q);
+
 export const getCart = () => cart.get();
 export const addToCart = (item) => cart.add(item);
 export const updateCart = (item) => cart.update(item);
 export const removeFromCart = (id) => cart.remove(id);
-export const getOrders = () => customer.orders.list();
+export const clearCart = () => cart.clear();
+
+export const getOrders = async (params) => asArray(await customer.orders.list(params));
+export const listOrders = getOrders;
 export const getOrder = (id) => customer.orders.get(id);
+
+export default {
+  products,
+  cart,
+  checkout,
+  artwork,
+  payment,
+  customer,
+  health,
+  createOrder,
+  uploadArtwork,
+  getOrders,
+  getOrder,
+};
