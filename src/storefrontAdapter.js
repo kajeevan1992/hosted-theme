@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = 'http://yccfmd4h13a1y6hi691si73r.13.61.22.39.sslip.io';
+const DEFAULT_BASE_URL = '';
 
 function envBaseUrl() {
   try {
@@ -53,13 +53,17 @@ export function installStorefrontAdapter() {
     ...existing,
     _config: {
       baseUrl: getBaseUrl(),
-      mode: getBaseUrl() ? 'external-backend' : 'same-origin',
+      mode: getBaseUrl() ? 'configured-backend' : 'same-origin-hosted-theme',
     },
     products: {
       ...existing.products,
       list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery(params)}`),
       get: (idOrSlug) => request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, id: idOrSlug })}`),
       search: (q) => request(`/api/internal/catalog/storefront-products${toQuery({ q })}`),
+    },
+    pricing: {
+      ...(existing.pricing || {}),
+      resolve: (data = {}) => request('/api/internal/catalog/pricing-resolve', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
     rules: {
       ...(existing.rules || {}),
