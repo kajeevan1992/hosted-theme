@@ -64,6 +64,24 @@ function normaliseRuleResult(payload, selections = {}) {
   };
 }
 
+function normalisePrice(payload) {
+  const data = payload?.data || payload || {};
+  return {
+    ok: data.ok !== false,
+    sku: data.sku || null,
+    oldSku: data.oldSku || null,
+    quantity: data.quantity || data.options?.quantity || null,
+    options: data.options || {},
+    currency: data.currency || 'GBP',
+    netMinor: Number(data.netMinor || data.priceMinor || 0),
+    vatRate: Number(data.vatRate ?? 20),
+    vatMinor: Number(data.vatMinor || 0),
+    grossMinor: Number(data.grossMinor || data.totalMinor || data.netMinor || data.priceMinor || 0),
+    supplierPriceMinor: data.supplierPriceMinor || null,
+    matchedRow: data.matchedRow || null,
+  };
+}
+
 export const products = {
   async list(params = {}) {
     return normaliseList(await call('products.list', storefront().products?.list, { items: [], count: 0 }).then((fnResult) => fnResult || storefront().products?.list?.(params)));
@@ -77,6 +95,17 @@ export const products = {
     return normaliseList(payload);
   },
 };
+
+export const pricing = {
+  async resolve(data = {}) {
+    const payload = await call('pricing.resolve', () => storefront().pricing?.resolve?.(data), null);
+    return normalisePrice(payload);
+  },
+};
+
+export async function resolveProductPrice(data = {}) {
+  return pricing.resolve(data);
+}
 
 export const rules = {
   async evaluate(data = {}) {
@@ -163,6 +192,7 @@ export const listProducts = (params) => products.list(params);
 export const getProducts = (params) => products.list(params);
 export const getProduct = (idOrSlug) => products.get(idOrSlug);
 export const searchProducts = (q) => products.search(q);
+export const getLivePrice = (data) => pricing.resolve(data);
 
 export const getCart = () => cart.get();
 export const addToCart = (item) => cart.add(item);
@@ -186,6 +216,7 @@ export const getOrder = (id) => customer.orders.get(id);
 
 export default {
   products,
+  pricing,
   rules,
   cart,
   checkout,
@@ -197,6 +228,7 @@ export default {
   getProducts,
   getProduct,
   searchProducts,
+  getLivePrice,
   getCart,
   addToCart,
   updateCart,
@@ -212,5 +244,6 @@ export default {
   getOrders,
   listOrders,
   getOrder,
+  resolveProductPrice,
   evaluateProductRules,
 };
