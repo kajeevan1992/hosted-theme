@@ -2,7 +2,7 @@ const DEFAULT_BASE_URL = '';
 
 function envBaseUrl() {
   try {
-    return import.meta?.env?.VITE_API_URL || import.meta?.env?.VITE_BACKEND_URL || '';
+    return import.meta?.env?.VITE_API_URL || import.meta?.env?.VITE_BACKEND_URL || import.meta?.env?.VITE_INTERNAL_API_BASE_URL || '';
   } catch {
     return '';
   }
@@ -57,9 +57,9 @@ export function installStorefrontAdapter() {
     },
     products: {
       ...existing.products,
-      list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery(params)}`),
-      get: (idOrSlug) => request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, id: idOrSlug })}`),
-      search: (q) => request(`/api/internal/catalog/storefront-products${toQuery({ q })}`),
+      list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery({ includeDrafts: true, ...params })}`),
+      get: (idOrSlug) => request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`),
+      search: (q) => request(`/api/internal/catalog/storefront-products${toQuery({ q, includeDrafts: true })}`),
     },
     pricing: {
       ...(existing.pricing || {}),
