@@ -19,7 +19,7 @@ function valueLabel(value) {
   return typeof value === 'object' ? String(value.label || value.value || '') : String(value || '');
 }
 
-export default function ProductLiveConfigurator({ pathname }) {
+export default function ProductLiveConfigurator({ pathname, fallback = null }) {
   const {
     product,
     optionGroups,
@@ -36,10 +36,12 @@ export default function ProductLiveConfigurator({ pathname }) {
   const [added, setAdded] = useState(false);
 
   if (loading) {
-    return <main className="min-h-screen bg-[#F7F8FC] px-6 py-16">Loading product…</main>;
+    return <main className="min-h-screen bg-[#F7F8FC] px-6 py-16">Loading backend product…</main>;
   }
 
-  if (!live) return null;
+  if (!live || !product || !optionGroups.length) {
+    return fallback;
+  }
 
   const title = product?.name || product?.title || 'Print Product';
   const currency = price?.currency || 'GBP';
@@ -61,14 +63,14 @@ export default function ProductLiveConfigurator({ pathname }) {
       <section className="border-b border-[#E3E8F0] bg-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1fr_390px]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#18A7D0]">Live product</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#18A7D0]">Backend connected product</p>
             <h1 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">{title}</h1>
             <p className="mt-4 max-w-3xl text-lg text-[#667487]">
-              Configure your print order. This page is using backend product options and your imported CSV pricing matrix.
+              This product is now rendering from backend CSV option groups and live pricing rules.
             </p>
           </div>
           <aside className="rounded-[28px] border border-[#E3E8F0] bg-[#FAFBFE] p-6 shadow-sm">
-            <p className="text-sm font-semibold text-[#667487]">Live price</p>
+            <p className="text-sm font-semibold text-[#667487]">Live backend price</p>
             <div className="mt-2 text-4xl font-black">{moneyFromMinor(total, currency)}</div>
             {price ? (
               <p className="mt-2 text-sm text-[#667487]">SKU {price.sku || '—'} · VAT {moneyFromMinor(price.vatMinor || 0, currency)}</p>
@@ -120,7 +122,7 @@ export default function ProductLiveConfigurator({ pathname }) {
           })}
         </div>
         <aside className="rounded-[28px] border border-[#E3E8F0] bg-white p-6 shadow-sm h-fit">
-          <h3 className="font-black">Selected specification</h3>
+          <h3 className="font-black">Selected backend specification</h3>
           <dl className="mt-4 space-y-2 text-sm">
             {Object.entries(selections).map(([key, value]) => (
               <div key={key} className="flex justify-between gap-4 border-b border-[#F3F5FA] pb-2">
