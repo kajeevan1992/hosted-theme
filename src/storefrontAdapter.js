@@ -26,6 +26,7 @@ async function request(path, options = {}) {
   });
 
   const payload = await response.json().catch(() => ({}));
+
   if (!response.ok || payload.ok === false) {
     const message = payload?.error?.message || payload?.error || `Request failed: ${response.status}`;
     const error = new Error(message);
@@ -34,32 +35,58 @@ async function request(path, options = {}) {
     error.url = url;
     throw error;
   }
+
   return payload.data ?? payload;
 }
 
 function toQuery(params = {}) {
   const query = new URLSearchParams();
+
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+    if (value !== undefined && value !== null && value !== '') {
+      query.set(key, String(value));
+    }
   });
+
   const text = query.toString();
   return text ? `?${text}` : '';
+}
+
+function normalizeStorefrontPayload(payload, idOrSlug) {
+  if (!payload) return null;
+
+  if (payload.product) return payload.product;
+  if (payload.item) return payload.item;
+
+  if (Array.isArray(payload.items)) {
+    return payload.items.find((item) => item?.slug === idOrSlug || item?.id === idOrSlug) || payload.items[0] || null;
+  }
+
+  return payload;
 }
 
 async function getProductWithFallback(idOrSlug) {
   try {
     const storefront = await request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`);
-    const product = storefront?.product || storefront?.item || storefront;
+
+    const product = normalizeStorefrontPayload(storefront, idOrSlug);
+
     if (product?.slug || product?.id) {
-      return { product, found: true, source: 'storefront-products' };
+      return {
+        product,
+        found: true,
+        source: 'storefront-products',
+      };
     }
   } catch {}
 
   try {
     const raw = await request(`/api/internal/catalog/products/${encodeURIComponent(idOrSlug)}`);
     const product = raw?.product || raw?.item || raw;
+
     if (product?.slug || product?.id) {
       const metadata = product.metadataJson || {};
+
       return {
         product: {
           ...product,
