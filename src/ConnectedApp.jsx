@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
 
+const BUILD_FINGERPRINT = 'HOSTED-THEME-LIVE-CONFIG-v2026-05-14-VERIFY-01';
+
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
   'business-cards',
@@ -25,6 +27,14 @@ function looksLikeProductRoute(pathname) {
   const slug = String(pathname || '').replace(/^\//, '').replace(/\/$/, '');
   if (!slug) return false;
   return PRODUCT_ROUTE_HINTS.some((hint) => slug.includes(hint));
+}
+
+function BuildFingerprintBanner() {
+  return (
+    <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 999999, background: '#111827', color: '#fff', fontSize: 11, padding: '8px 10px', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.2)', opacity: 0.88 }}>
+      {BUILD_FINGERPRINT}
+    </div>
+  );
 }
 
 export default function ConnectedApp() {
@@ -66,8 +76,18 @@ export default function ConnectedApp() {
   }, []);
 
   if (looksLikeProductRoute(pathname)) {
-    return <ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} />;
+    return (
+      <>
+        <ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} />
+        <BuildFingerprintBanner />
+      </>
+    );
   }
 
-  return <AppLive />;
+  return (
+    <>
+      <AppLive />
+      <BuildFingerprintBanner />
+    </>
+  );
 }
