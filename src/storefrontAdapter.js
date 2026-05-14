@@ -46,6 +46,45 @@ function toQuery(params = {}) {
   return text ? `?${text}` : '';
 }
 
+async function getProductWithFallback(idOrSlug) {
+  try {
+    const storefront = await request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`);
+    const product = storefront?.product || storefront?.item || storefront;
+    if (product?.slug || product?.id) {
+      return { product, found: true, source: 'storefront-products' };
+    }
+  } catch {}
+
+  try {
+    const raw = await request(`/api/internal/catalog/products/${encodeURIComponent(idOrSlug)}`);
+    const product = raw?.product || raw?.item || raw;
+    if (product?.slug || product?.id) {
+      const metadata = product.metadataJson || {};
+      return {
+        product: {
+          ...product,
+          name: product.name || product.title,
+          optionGroups: product.optionGroups || metadata.optionGroups || [],
+          pricingMatrix: product.pricingMatrix || metadata.pricingMatrix || null,
+          metadataJson: metadata,
+          readiness: {
+            ready: true,
+            csvMatrixReady: Boolean(metadata?.pricingMatrix?.rows?.length),
+          },
+        },
+        found: true,
+        source: 'raw-product-endpoint',
+      };
+    }
+  } catch {}
+
+  return {
+    product: null,
+    found: false,
+    source: 'not-found',
+  };
+}
+
 export function installStorefrontAdapter() {
   const existing = window.storefront || {};
 
@@ -58,7 +97,7 @@ export function installStorefrontAdapter() {
     products: {
       ...existing.products,
       list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery({ includeDrafts: true, ...params })}`),
-      get: (idOrSlug) => request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`),
+      get: getProductWithFallback,
       search: (q) => request(`/api/internal/catalog/storefront-products${toQuery({ q, includeDrafts: true })}`),
     },
     pricing: {
