@@ -4,6 +4,7 @@ import {
   defaultSelectionsFromOptionGroups,
   mergeResolvedPriceIntoCartItem,
   optionGroupsFromBackendProduct,
+  pricingMatrixRows,
   resolveLiveCsvPrice,
 } from './livePricingBridge';
 
@@ -13,14 +14,28 @@ export function normalizePathSlug(pathname) {
 
 function unwrapProduct(payload) {
   if (!payload) return null;
-  if (payload.product) return payload.product;
-  if (payload.item) return payload.item;
+
+  if (payload.found === false) return null;
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'product')) {
+    return payload.product || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(payload, 'item')) {
+    return payload.item || null;
+  }
+
+  if (payload.data) return unwrapProduct(payload.data);
+
+  if (Array.isArray(payload.items)) {
+    return payload.items[0] || null;
+  }
+
   return payload;
 }
 
 function hasBackendMatrix(product) {
-  const rows = product?.metadataJson?.pricingMatrix?.rows || product?.pricingMatrix?.rows;
-  return Array.isArray(rows) && rows.length > 0;
+  return pricingMatrixRows(product).length > 0;
 }
 
 export function useLiveProductPricing(pathname) {
@@ -34,20 +49,24 @@ export function useLiveProductPricing(pathname) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setPrice(null);
+    setPriceError('');
 
     getProduct(productSlug)
       .then((loaded) => {
         if (!alive) return;
 
         const normalized = unwrapProduct(loaded);
-        const optionGroups = optionGroupsFromBackendProduct(normalized);
+        const exactProduct = normalized && (normalized.slug === productSlug || normalized.id === productSlug) ? normalized : null;
+        const optionGroups = optionGroupsFromBackendProduct(exactProduct);
 
-        setProduct(normalized);
+        setProduct(exactProduct);
         setSelections(defaultSelectionsFromOptionGroups(optionGroups));
       })
       .catch(() => {
         if (!alive) return;
         setProduct(null);
+        setSelections({});
       })
       .finally(() => {
         if (!alive) return;
