@@ -11,6 +11,13 @@ export function normalizePathSlug(pathname) {
   return String(pathname || '').replace(/^\//, '').replace(/\/$/, '') || 'standard-business-cards';
 }
 
+function unwrapProduct(payload) {
+  if (!payload) return null;
+  if (payload.product) return payload.product;
+  if (payload.item) return payload.item;
+  return payload;
+}
+
 function hasBackendMatrix(product) {
   const rows = product?.metadataJson?.pricingMatrix?.rows || product?.pricingMatrix?.rows;
   return Array.isArray(rows) && rows.length > 0;
@@ -27,16 +34,29 @@ export function useLiveProductPricing(pathname) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
+
     getProduct(productSlug)
       .then((loaded) => {
         if (!alive) return;
-        const optionGroups = optionGroupsFromBackendProduct(loaded);
-        setProduct(loaded);
+
+        const normalized = unwrapProduct(loaded);
+        const optionGroups = optionGroupsFromBackendProduct(normalized);
+
+        setProduct(normalized);
         setSelections(defaultSelectionsFromOptionGroups(optionGroups));
       })
-      .catch(() => alive && setProduct(null))
-      .finally(() => alive && setLoading(false));
-    return () => { alive = false; };
+      .catch(() => {
+        if (!alive) return;
+        setProduct(null);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
   }, [productSlug]);
 
   const optionGroups = useMemo(() => optionGroupsFromBackendProduct(product), [product]);
@@ -44,24 +64,40 @@ export function useLiveProductPricing(pathname) {
 
   useEffect(() => {
     let alive = true;
+
     if (!live) return undefined;
+
     setPriceError('');
-    resolveLiveCsvPrice({ product, productSlug, selections })
+
+    resolveLiveCsvPrice({
+      product,
+      productSlug,
+      selections,
+    })
       .then((resolved) => {
         if (!alive) return;
+
         setPrice(resolved);
-        if (!resolved) setPriceError('Choose a valid option combination.');
+
+        if (!resolved) {
+          setPriceError('Choose a valid option combination.');
+        }
       })
       .catch((error) => {
         if (!alive) return;
+
         setPrice(null);
         setPriceError(error?.message || 'No exact CSV price match found.');
       });
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, [live, product, productSlug, selections]);
 
   async function addResolvedItemToCart() {
     const name = product?.name || product?.title || 'Print product';
+
     const item = {
       productId: product?.id,
       productSlug: product?.slug || productSlug,
@@ -73,6 +109,7 @@ export function useLiveProductPricing(pathname) {
       unitPriceMinor: price?.netMinor || 0,
       totalPriceMinor: price?.netMinor || 0,
     };
+
     return addToCart(mergeResolvedPriceIntoCartItem(item, price));
   }
 
