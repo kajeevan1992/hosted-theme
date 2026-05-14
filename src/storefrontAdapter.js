@@ -15,7 +15,6 @@ function getBaseUrl() {
 
 async function request(path, options = {}) {
   const url = `${getBaseUrl()}${path}`;
-
   const response = await fetch(url, {
     credentials: 'include',
     headers: {
@@ -25,118 +24,89 @@ async function request(path, options = {}) {
     },
     ...options,
   });
-
   const payload = await response.json().catch(() => ({}));
-
   if (!response.ok || payload.ok === false) {
     const message = payload?.error?.message || payload?.error || `Request failed: ${response.status}`;
-
     const error = new Error(message);
     error.status = response.status;
     error.payload = payload;
     error.url = url;
-
     throw error;
   }
-
   return payload;
 }
 
 function toQuery(params = {}) {
   const query = new URLSearchParams();
-
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      query.set(key, String(value));
-    }
+    if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
   });
-
   const text = query.toString();
   return text ? `?${text}` : '';
 }
 
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try { return JSON.parse(value); } catch { return {}; }
+  }
+  return typeof value === 'object' ? value : {};
+}
+
+function normalizeProduct(product) {
+  if (!product || !(product.slug || product.id)) return null;
+  const metadata = parseMetadata(product.metadataJson);
+  return {
+    ...product,
+    name: product.name || product.title,
+    optionGroups: product.optionGroups || metadata.optionGroups || [],
+    pricingMatrix: product.pricingMatrix || metadata.pricingMatrix || null,
+    metadataJson: metadata,
+    readiness: {
+      ...(product.readiness || {}),
+      ready: true,
+      csvMatrixReady: Boolean((product.pricingMatrix || metadata.pricingMatrix)?.rows?.length),
+    },
+  };
+}
+
 function normalizeStorefrontPayload(payload, idOrSlug) {
   if (!payload) return null;
-
-  if (payload.data) {
-    return normalizeStorefrontPayload(payload.data, idOrSlug);
-  }
-
-  if (payload.product) return payload.product;
-  if (payload.item) return payload.item;
-
+  if (payload.data) return normalizeStorefrontPayload(payload.data, idOrSlug);
+  if (payload.product) return normalizeStorefrontPayload(payload.product, idOrSlug);
+  if (payload.item) return normalizeStorefrontPayload(payload.item, idOrSlug);
   if (Array.isArray(payload.items)) {
-    return payload.items.find((item) => item?.slug === idOrSlug || item?.id === idOrSlug) || payload.items[0] || null;
+    const exact = payload.items.find((item) => item?.slug === idOrSlug || item?.id === idOrSlug);
+    return exact ? normalizeProduct(exact) : null;
   }
-
-  return payload;
+  return normalizeProduct(payload);
 }
 
 async function getProductWithFallback(idOrSlug) {
   try {
-    const storefront = await request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`);
-
-    const product = normalizeStorefrontPayload(storefront, idOrSlug);
-
-    if (product?.slug || product?.id) {
-      return {
-        product,
-        found: true,
-        source: 'storefront-products',
-      };
+    const raw = await request(`/api/internal/catalog/products/${encodeURIComponent(idOrSlug)}`);
+    const product = normalizeStorefrontPayload(raw, idOrSlug);
+    if (product && (product.slug === idOrSlug || product.id === idOrSlug)) {
+      return { product, found: true, source: 'raw-product-endpoint' };
     }
   } catch {}
 
   try {
-    const raw = await request(`/api/internal/catalog/products/${encodeURIComponent(idOrSlug)}`);
-
-    const product = normalizeStorefrontPayload(raw, idOrSlug);
-
-    if (product?.slug || product?.id) {
-      const metadata = typeof product.metadataJson === 'string'
-        ? (() => {
-            try {
-              return JSON.parse(product.metadataJson);
-            } catch {
-              return {};
-            }
-          })()
-        : (product.metadataJson || {});
-
-      return {
-        product: {
-          ...product,
-          name: product.name || product.title,
-          optionGroups: product.optionGroups || metadata.optionGroups || [],
-          pricingMatrix: product.pricingMatrix || metadata.pricingMatrix || null,
-          metadataJson: metadata,
-          readiness: {
-            ready: true,
-            csvMatrixReady: Boolean(metadata?.pricingMatrix?.rows?.length),
-          },
-        },
-        found: true,
-        source: 'raw-product-endpoint',
-      };
+    const storefront = await request(`/api/internal/catalog/storefront-products${toQuery({ slug: idOrSlug, includeDrafts: true })}`);
+    const product = normalizeStorefrontPayload(storefront, idOrSlug);
+    if (product && (product.slug === idOrSlug || product.id === idOrSlug)) {
+      return { product, found: true, source: 'storefront-products' };
     }
   } catch {}
 
-  return {
-    product: null,
-    found: false,
-    source: 'not-found',
-  };
+  return { product: null, found: false, source: 'not-found' };
 }
 
 export function installStorefrontAdapter() {
   const existing = window.storefront || {};
-
   window.storefront = {
     ...existing,
-    _config: {
-      baseUrl: getBaseUrl(),
-      mode: getBaseUrl() ? 'configured-backend' : 'same-origin-hosted-theme',
-    },
+    _config: { baseUrl: getBaseUrl(), mode: getBaseUrl() ? 'configured-backend' : 'same-origin-hosted-theme' },
     products: {
       ...existing.products,
       list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery({ includeDrafts: true, ...params })}`),
@@ -145,89 +115,39 @@ export function installStorefrontAdapter() {
     },
     pricing: {
       ...(existing.pricing || {}),
-      resolve: (data = {}) => request('/api/internal/catalog/pricing-resolve', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
+      resolve: (data = {}) => request('/api/internal/catalog/pricing-resolve', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
     rules: {
       ...(existing.rules || {}),
-      evaluate: (data = {}) => request('/api/internal/catalog/evaluate-rules', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
+      evaluate: (data = {}) => request('/api/internal/catalog/evaluate-rules', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
     cart: {
       ...existing.cart,
       get: () => request('/api/internal/storefront/cart'),
-      add: (item) => request('/api/internal/storefront/cart', {
-        method: 'POST',
-        body: JSON.stringify(item || {}),
-      }),
-      update: (item) => request('/api/internal/storefront/cart', {
-        method: 'PUT',
-        body: JSON.stringify(item || {}),
-      }),
-      remove: (id) => request(`/api/internal/storefront/cart${toQuery({ id })}`, {
-        method: 'DELETE',
-      }),
-      clear: () => request('/api/internal/storefront/cart?clear=true', {
-        method: 'DELETE',
-      }),
+      add: (item) => request('/api/internal/storefront/cart', { method: 'POST', body: JSON.stringify(item || {}) }),
+      update: (item) => request('/api/internal/storefront/cart', { method: 'PUT', body: JSON.stringify(item || {}) }),
+      remove: (id) => request(`/api/internal/storefront/cart${toQuery({ id })}`, { method: 'DELETE' }),
+      clear: () => request('/api/internal/storefront/cart?clear=true', { method: 'DELETE' }),
     },
     checkout: {
       ...existing.checkout,
       precheck: () => request('/api/internal/storefront/checkout'),
-      createDraft: (data) => request('/api/internal/storefront/checkout', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
+      createDraft: (data) => request('/api/internal/storefront/checkout', { method: 'POST', body: JSON.stringify(data || {}) }),
       createOrder: async (data = {}) => {
-        const draft = await request('/api/internal/storefront/checkout', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        });
-
-        const draftOrderId = draft?.draftOrder?.id || draft?.record?.id || data.draftOrderId || data.orderId;
-
+        const draft = await request('/api/internal/storefront/checkout', { method: 'POST', body: JSON.stringify(data) });
+        const draftOrderId = draft?.data?.draftOrder?.id || draft?.draftOrder?.id || draft?.record?.id || data.draftOrderId || data.orderId;
         if (!draftOrderId) return draft;
-
-        return request('/api/internal/storefront/finalise', {
-          method: 'POST',
-          body: JSON.stringify({ draftOrderId }),
-        });
+        return request('/api/internal/storefront/finalise', { method: 'POST', body: JSON.stringify({ draftOrderId }) });
       },
-      finalise: (data) => request('/api/internal/storefront/finalise', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
+      finalise: (data) => request('/api/internal/storefront/finalise', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
-    payment: {
-      ...existing.payment,
-      update: (data) => request('/api/internal/storefront/payments', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
-    },
+    payment: { ...existing.payment, update: (data) => request('/api/internal/storefront/payments', { method: 'POST', body: JSON.stringify(data || {}) }) },
     artwork: {
       ...existing.artwork,
-      upload: (data) => {
-        if (data instanceof FormData) {
-          return request('/api/internal/storefront/artwork', {
-            method: 'POST',
-            body: data,
-          });
-        }
-
-        return request('/api/internal/storefront/artwork', {
-          method: 'POST',
-          body: JSON.stringify(data || {}),
-        });
-      },
-      preflight: (data) => request('/api/internal/storefront/preflight', {
-        method: 'POST',
-        body: JSON.stringify(data || {}),
-      }),
+      upload: (data) => data instanceof FormData
+        ? request('/api/internal/storefront/artwork', { method: 'POST', body: data })
+        : request('/api/internal/storefront/artwork', { method: 'POST', body: JSON.stringify(data || {}) }),
+      preflight: (data) => request('/api/internal/storefront/preflight', { method: 'POST', body: JSON.stringify(data || {}) }),
     },
     customer: {
       ...existing.customer,
@@ -238,22 +158,12 @@ export function installStorefrontAdapter() {
           const data = await request('/api/internal/storefront/orders');
           const payload = data?.data || data;
           const orders = payload.orders || payload.finalOrders || payload.draftOrders || [];
-
-          return orders.find(
-            (order) =>
-              String(order.id) === String(id) ||
-              String(order.orderNumber) === String(id) ||
-              String(order.quoteReference) === String(id),
-          ) || null;
+          return orders.find((order) => String(order.id) === String(id) || String(order.orderNumber) === String(id) || String(order.quoteReference) === String(id)) || null;
         },
       },
     },
-    health: {
-      ...existing.health,
-      get: () => request('/api/internal/storefront/health'),
-    },
+    health: { ...existing.health, get: () => request('/api/internal/storefront/health') },
   };
-
   return window.storefront;
 }
 
