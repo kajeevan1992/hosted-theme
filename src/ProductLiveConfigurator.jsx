@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Check, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, Check, ShoppingCart } from 'lucide-react';
 import { moneyFromMinor } from './livePricingBridge';
-import { useLiveProductPricing } from './useLiveProductPricing';
+import { normalizePathSlug, useLiveProductPricing } from './useLiveProductPricing';
 
 function groupKey(group) {
   return group.id || group.key || group.label;
@@ -19,7 +19,7 @@ function valueLabel(value) {
   return typeof value === 'object' ? String(value.label || value.value || '') : String(value || '');
 }
 
-export default function ProductLiveConfigurator({ pathname, fallback = null }) {
+export default function ProductLiveConfigurator({ pathname }) {
   const {
     product,
     optionGroups,
@@ -36,11 +36,36 @@ export default function ProductLiveConfigurator({ pathname, fallback = null }) {
   const [added, setAdded] = useState(false);
 
   if (loading) {
-    return <main className="min-h-screen bg-[#F7F8FC] px-6 py-16">Loading backend product…</main>;
+    return <main className="min-h-screen bg-[#F7F8FC] px-6 py-16 text-[#161A22]">Loading backend product…</main>;
   }
 
   if (!live || !product || !optionGroups.length) {
-    return fallback;
+    const slug = normalizePathSlug(pathname);
+    return (
+      <main className="min-h-screen bg-[#F7F8FC] px-6 py-16 text-[#161A22]">
+        <div className="mx-auto max-w-4xl rounded-[28px] border border-amber-200 bg-white p-8 shadow-sm">
+          <div className="flex items-start gap-4">
+            <AlertTriangle className="mt-1 text-amber-500" size={28} />
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-600">Backend product not connected</p>
+              <h1 className="mt-3 text-3xl font-black">{slug}</h1>
+              <p className="mt-4 text-[#667487]">
+                This route is now using the backend configurator, but the backend did not return a CSV-ready product for this slug.
+              </p>
+              <div className="mt-6 rounded-2xl bg-[#F7F8FC] p-4 text-sm text-[#161A22]">
+                <p><strong>Expected API:</strong> /api/internal/catalog/storefront-products?slug={slug}</p>
+                <p><strong>Product found:</strong> {product ? 'yes' : 'no'}</p>
+                <p><strong>Option groups:</strong> {optionGroups.length}</p>
+                <p><strong>Live CSV matrix:</strong> {live ? 'yes' : 'no'}</p>
+              </div>
+              <p className="mt-4 text-sm text-[#667487]">
+                Re-import the CSV with this exact slug, then redeploy/refresh. If this page still does not change after deploy, the frontend service is still running an old build.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   const title = product?.name || product?.title || 'Print Product';
@@ -78,12 +103,7 @@ export default function ProductLiveConfigurator({ pathname, fallback = null }) {
               <p className="mt-2 text-sm text-[#667487]">Choose options to calculate exact price.</p>
             )}
             {priceError ? <p className="mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-700">{priceError}</p> : null}
-            <button
-              type="button"
-              onClick={handleAdd}
-              disabled={adding || !price}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#18A7D0] px-5 py-4 font-bold text-white hover:bg-[#127B98] disabled:opacity-50"
-            >
+            <button type="button" onClick={handleAdd} disabled={adding || !price} className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#18A7D0] px-5 py-4 font-bold text-white hover:bg-[#127B98] disabled:opacity-50">
               <ShoppingCart size={18} /> {adding ? 'Adding…' : 'Add to basket'}
             </button>
             {added ? <p className="mt-3 text-center text-sm font-bold text-emerald-600">Added to basket.</p> : null}
@@ -104,15 +124,8 @@ export default function ProductLiveConfigurator({ pathname, fallback = null }) {
                     const raw = valueKey(value);
                     const active = String(selections[key]) === raw;
                     return (
-                      <button
-                        key={`${key}-${raw}`}
-                        type="button"
-                        onClick={() => setSelections((current) => ({ ...current, [key]: raw }))}
-                        className={`rounded-2xl border p-4 text-left font-semibold transition ${active ? 'border-[#18A7D0] bg-[#EAF8FC]' : 'border-[#E3E8F0] bg-white hover:border-[#18A7D0]'}`}
-                      >
-                        <span className="flex items-center justify-between gap-3">
-                          {valueLabel(value)} {active ? <Check size={18} className="text-[#18A7D0]" /> : null}
-                        </span>
+                      <button key={`${key}-${raw}`} type="button" onClick={() => setSelections((current) => ({ ...current, [key]: raw }))} className={`rounded-2xl border p-4 text-left font-semibold transition ${active ? 'border-[#18A7D0] bg-[#EAF8FC]' : 'border-[#E3E8F0] bg-white hover:border-[#18A7D0]'}`}>
+                        <span className="flex items-center justify-between gap-3">{valueLabel(value)} {active ? <Check size={18} className="text-[#18A7D0]" /> : null}</span>
                       </button>
                     );
                   })}
