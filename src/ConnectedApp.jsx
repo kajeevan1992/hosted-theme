@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
-import { useLiveProductPricing } from './useLiveProductPricing';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -30,7 +29,6 @@ function looksLikeProductRoute(pathname) {
 
 export default function ConnectedApp() {
   const [pathname, setPathname] = useState(currentPath());
-  const liveState = useLiveProductPricing(pathname);
 
   useEffect(() => {
     const update = () => setPathname(currentPath());
@@ -67,10 +65,8 @@ export default function ConnectedApp() {
     };
   }, []);
 
-  const shouldTryLiveProduct = looksLikeProductRoute(pathname);
-
-  if (shouldTryLiveProduct && liveState.live) {
-    return <ProductLiveConfigurator pathname={pathname} />;
+  if (looksLikeProductRoute(pathname)) {
+    return <ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} />;
   }
 
   return <AppLive />;
