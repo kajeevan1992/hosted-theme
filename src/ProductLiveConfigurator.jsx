@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Check, ShoppingCart } from 'lucide-react';
-import { moneyFromMinor } from './livePricingBridge';
+import { moneyFromMinor, pricingMatrixRows } from './livePricingBridge';
 import { normalizePathSlug, useLiveProductPricing } from './useLiveProductPricing';
 
 function groupKey(group) {
@@ -19,6 +19,24 @@ function valueLabel(value) {
   return typeof value === 'object' ? String(value.label || value.value || '') : String(value || '');
 }
 
+function DiagnosticPanel({ title, slug, children }) {
+  return (
+    <main className="min-h-screen bg-[#F7F8FC] px-6 py-16 text-[#161A22]">
+      <div className="mx-auto max-w-4xl rounded-[28px] border border-amber-200 bg-white p-8 shadow-sm">
+        <div className="flex items-start gap-4">
+          <AlertTriangle className="mt-1 text-amber-500" size={28} />
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-600">Storefront product diagnostic</p>
+            <h1 className="mt-3 text-3xl font-black">{title}</h1>
+            <p className="mt-2 text-[#667487]">Slug: {slug}</p>
+            <div className="mt-6 rounded-2xl bg-[#F7F8FC] p-4 text-sm text-[#161A22]">{children}</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function ProductLiveConfigurator({ pathname }) {
   const {
     product,
@@ -35,36 +53,41 @@ export default function ProductLiveConfigurator({ pathname }) {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
 
+  const slug = normalizePathSlug(pathname);
+  const matrixRows = pricingMatrixRows(product);
+
   if (loading) {
     return <main className="min-h-screen bg-[#F7F8FC] px-6 py-16 text-[#161A22]">Loading backend product…</main>;
   }
 
-  if (!live || !product || !optionGroups.length) {
-    const slug = normalizePathSlug(pathname);
+  if (!product) {
     return (
-      <main className="min-h-screen bg-[#F7F8FC] px-6 py-16 text-[#161A22]">
-        <div className="mx-auto max-w-4xl rounded-[28px] border border-amber-200 bg-white p-8 shadow-sm">
-          <div className="flex items-start gap-4">
-            <AlertTriangle className="mt-1 text-amber-500" size={28} />
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-600">Backend product not connected</p>
-              <h1 className="mt-3 text-3xl font-black">{slug}</h1>
-              <p className="mt-4 text-[#667487]">
-                This route is now using the backend configurator, but the backend did not return a CSV-ready product for this slug.
-              </p>
-              <div className="mt-6 rounded-2xl bg-[#F7F8FC] p-4 text-sm text-[#161A22]">
-                <p><strong>Expected API:</strong> /api/internal/catalog/storefront-products?slug={slug}</p>
-                <p><strong>Product found:</strong> {product ? 'yes' : 'no'}</p>
-                <p><strong>Option groups:</strong> {optionGroups.length}</p>
-                <p><strong>Live CSV matrix:</strong> {live ? 'yes' : 'no'}</p>
-              </div>
-              <p className="mt-4 text-sm text-[#667487]">
-                Re-import the CSV with this exact slug, then redeploy/refresh. If this page still does not change after deploy, the frontend service is still running an old build.
-              </p>
-            </div>
-          </div>
-        </div>
-      </main>
+      <DiagnosticPanel title="Product not found" slug={slug}>
+        <p>No exact backend product matched this slug.</p>
+        <p className="mt-2"><strong>Expected:</strong> /api/internal/catalog/products/{slug}</p>
+      </DiagnosticPanel>
+    );
+  }
+
+  if (!optionGroups.length) {
+    return (
+      <DiagnosticPanel title="Product has no option groups" slug={slug}>
+        <p><strong>Product found:</strong> yes</p>
+        <p><strong>Option groups:</strong> 0</p>
+        <p><strong>Pricing rows:</strong> {matrixRows.length}</p>
+        <p className="mt-3">The backend product exists but frontend could not detect usable optionGroups.</p>
+      </DiagnosticPanel>
+    );
+  }
+
+  if (!matrixRows.length) {
+    return (
+      <DiagnosticPanel title="Product has no pricing matrix" slug={slug}>
+        <p><strong>Product found:</strong> yes</p>
+        <p><strong>Option groups:</strong> {optionGroups.length}</p>
+        <p><strong>Pricing rows:</strong> 0</p>
+        <p className="mt-3">The product configurator loaded but no CSV pricing matrix rows were detected.</p>
+      </DiagnosticPanel>
     );
   }
 
