@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './AppLive'
+import App from './ConnectedApp'
 import './index.css'
 import installStorefrontAdapter from './storefrontAdapter'
 
