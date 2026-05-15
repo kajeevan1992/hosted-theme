@@ -9,6 +9,8 @@ import DeliveryOptionsBlock from '../blocks/product/DeliveryOptionsBlock';
 import ProductGalleryBlock from '../blocks/product/ProductGalleryBlock';
 import ProductTabsBlock from '../blocks/product/ProductTabsBlock';
 import RelatedProductsBlock from '../blocks/product/RelatedProductsBlock';
+import CategoryHeroBlock from '../blocks/category/CategoryHeroBlock';
+import CategoryFiltersBlock from '../blocks/category/CategoryFiltersBlock';
 
 function Placeholder({ title, description }) {
   return (
@@ -26,7 +28,7 @@ const BLOCK_REGISTRY = {
   [BLOCK_TYPES.TRUST_BAR]: TrustBarBlock,
   [BLOCK_TYPES.USP_BAR]: TrustBarBlock,
   [BLOCK_TYPES.SUPPORT_CALLOUT]: ({ data }) => <Placeholder title={data?.title || 'Support Callout'} description={data?.description || 'Floating support / help CTA block.'} />,
-  [BLOCK_TYPES.ANCHOR_NAV]: ({ data }) => <Placeholder title={data?.title || 'Anchor Navigation'} description={data?.description || 'Sticky section navigation tabs.'} />,
+  [BLOCK_TYPES.ANCHOR_NAV]: CategoryFiltersBlock,
   [BLOCK_TYPES.PRODUCT_GRID]: ProductGridBlock,
   [BLOCK_TYPES.PRODUCT_GALLERY]: ProductGalleryBlock,
   [BLOCK_TYPES.PRODUCT_CONFIGURATOR]: ProductConfiguratorBlock,
@@ -37,7 +39,7 @@ const BLOCK_REGISTRY = {
   [BLOCK_TYPES.PROMO_CARD_GRID]: ({ data }) => <Placeholder title={data?.title || 'Promo Cards'} description={data?.description || 'Marketing promo cards and campaign tiles.'} />,
   [BLOCK_TYPES.RICH_TEXT]: ({ data }) => <Placeholder title={data?.title || 'Rich Text'} description={data?.content || 'SEO content, guides and marketing copy.'} />,
   [BLOCK_TYPES.FAQ]: ({ data }) => <Placeholder title={data?.title || 'FAQ'} description={data?.description || 'Frequently asked questions block.'} />,
-  [BLOCK_TYPES.CATEGORY_HERO]: HeroCarouselBlock,
+  [BLOCK_TYPES.CATEGORY_HERO]: CategoryHeroBlock,
 };
 
 export function BlockRenderer({ block, context = {} }) {
