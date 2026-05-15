@@ -4,6 +4,7 @@ import AnnouncementBar from '../storefront/layouts/AnnouncementBar';
 import NavigationEngine from '../storefront/layouts/NavigationEngine';
 import StorefrontFooter from '../storefront/layouts/StorefrontFooter';
 import storefrontLayoutPayload from '../storefront/data/layoutPayload';
+import { useStorefrontLayout } from '../storefront/hooks/useStorefrontLayout';
 
 const BRAND = {
   line: '#E3E8F0',
@@ -45,6 +46,7 @@ function StorefrontHeader({ currentPath = '/', cartCount = 0, cartSubtotal = 0, 
             <button className="rounded-xl p-2 xl:hidden" onClick={() => setMobileOpen(true)}>
               <Menu className="h-5 w-5" />
             </button>
+
             <button onClick={() => navigate('/')} className="flex items-center gap-0.5">
               <span className="text-[42px] font-black tracking-[-0.055em]" style={{ color: BRAND.primary }}>HOLO</span>
               <span className="text-[42px] font-black tracking-[-0.055em]" style={{ color: BRAND.ink }}>PRINT</span>
@@ -56,6 +58,7 @@ function StorefrontHeader({ currentPath = '/', cartCount = 0, cartSubtotal = 0, 
           <div className="ml-auto flex items-center gap-2">
             <IconButton icon={<Search className="h-4 w-4" />} onClick={() => window.dispatchEvent(new CustomEvent('storefront:search'))} />
             <IconButton icon={<User className="h-4 w-4" />} onClick={() => navigate('/login')} />
+
             <button onClick={() => navigate('/cart')} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-[12px] font-semibold" style={{ borderColor: BRAND.line, color: BRAND.muted, backgroundColor: 'white' }}>
               <ShoppingCart className="h-4 w-4" />
               <span>{currency(cartSubtotal)}</span>
@@ -70,11 +73,21 @@ function StorefrontHeader({ currentPath = '/', cartCount = 0, cartSubtotal = 0, 
           <div className="h-full w-[320px] bg-white p-5" onClick={(event) => event.stopPropagation()}>
             <div className="mb-6 flex items-center justify-between">
               <div className="text-[24px] font-black">Menu</div>
-              <button onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></button>
+              <button onClick={() => setMobileOpen(false)}>
+                <X className="h-5 w-5" />
+              </button>
             </div>
+
             <div className="grid gap-1">
               {navItems.map((item) => (
-                <button key={item.label} className="rounded-xl px-3 py-3 text-left text-[14px] font-semibold hover:bg-[#F6F7F8]" onClick={() => { navigate(item.href || '#'); setMobileOpen(false); }}>
+                <button
+                  key={item.label}
+                  className="rounded-xl px-3 py-3 text-left text-[14px] font-semibold hover:bg-[#F6F7F8]"
+                  onClick={() => {
+                    navigate(item.href || '#');
+                    setMobileOpen(false);
+                  }}
+                >
                   {item.label}
                 </button>
               ))}
@@ -86,7 +99,11 @@ function StorefrontHeader({ currentPath = '/', cartCount = 0, cartSubtotal = 0, 
   );
 }
 
-export function StorefrontChrome({ currentPath = '/', children, layout = storefrontLayoutPayload }) {
+export function StorefrontChrome({ currentPath = '/', children, layout: layoutOverride }) {
+  const { layout: liveLayout } = useStorefrontLayout();
+
+  const layout = layoutOverride || liveLayout || storefrontLayoutPayload;
+
   return (
     <>
       <AnnouncementBar data={layout?.announcement} />
