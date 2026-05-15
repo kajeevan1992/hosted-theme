@@ -14,6 +14,7 @@ export const BLOCK_TYPES = Object.freeze({
   PRODUCT_CONFIGURATOR: 'product_configurator',
   PRODUCT_PRICE_SUMMARY: 'product_price_summary',
   PRODUCT_DELIVERY: 'product_delivery',
+  PRODUCT_TABS: 'product_tabs',
   RELATED_PRODUCTS: 'related_products',
 });
 
