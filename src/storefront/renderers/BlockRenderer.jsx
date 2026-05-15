@@ -1,5 +1,8 @@
 import React from 'react';
 import { BLOCK_TYPES } from '../types/blockTypes';
+import HeroCarouselBlock from '../blocks/common/HeroCarouselBlock';
+import TrustBarBlock from '../blocks/common/TrustBarBlock';
+import ProductGridBlock from '../blocks/product/ProductGridBlock';
 
 function Placeholder({ title, description }) {
   return (
@@ -12,17 +15,17 @@ function Placeholder({ title, description }) {
 }
 
 const BLOCK_REGISTRY = {
-  [BLOCK_TYPES.HERO_BANNER]: ({ data }) => <Placeholder title={data?.title || 'Hero Banner'} description={data?.description || 'Large hero marketing section powered by backend block data.'} />,
-  [BLOCK_TYPES.HERO_CAROUSEL]: ({ data }) => <Placeholder title={data?.title || 'Hero Carousel'} description={data?.description || 'Carousel driven by backend slides and CTA data.'} />,
-  [BLOCK_TYPES.TRUST_BAR]: ({ data }) => <Placeholder title={data?.title || 'Trust Bar'} description={data?.description || 'Trustpilot, review and confidence messaging block.'} />,
-  [BLOCK_TYPES.USP_BAR]: ({ data }) => <Placeholder title={data?.title || 'USP Bar'} description={data?.description || 'Fast delivery, premium print and support highlights.'} />,
+  [BLOCK_TYPES.HERO_BANNER]: HeroCarouselBlock,
+  [BLOCK_TYPES.HERO_CAROUSEL]: HeroCarouselBlock,
+  [BLOCK_TYPES.TRUST_BAR]: TrustBarBlock,
+  [BLOCK_TYPES.USP_BAR]: TrustBarBlock,
   [BLOCK_TYPES.SUPPORT_CALLOUT]: ({ data }) => <Placeholder title={data?.title || 'Support Callout'} description={data?.description || 'Floating support / help CTA block.'} />,
   [BLOCK_TYPES.ANCHOR_NAV]: ({ data }) => <Placeholder title={data?.title || 'Anchor Navigation'} description={data?.description || 'Sticky section navigation tabs.'} />,
-  [BLOCK_TYPES.PRODUCT_GRID]: ({ data }) => <Placeholder title={data?.title || 'Product Grid'} description={data?.description || 'Category-driven or bestseller product listing block.'} />,
+  [BLOCK_TYPES.PRODUCT_GRID]: ProductGridBlock,
   [BLOCK_TYPES.PROMO_CARD_GRID]: ({ data }) => <Placeholder title={data?.title || 'Promo Cards'} description={data?.description || 'Marketing promo cards and campaign tiles.'} />,
   [BLOCK_TYPES.RICH_TEXT]: ({ data }) => <Placeholder title={data?.title || 'Rich Text'} description={data?.content || 'SEO content, guides and marketing copy.'} />,
   [BLOCK_TYPES.FAQ]: ({ data }) => <Placeholder title={data?.title || 'FAQ'} description={data?.description || 'Frequently asked questions block.'} />,
-  [BLOCK_TYPES.CATEGORY_HERO]: ({ data }) => <Placeholder title={data?.title || 'Category Hero'} description={data?.description || 'Category page hero and subcategory summary.'} />,
+  [BLOCK_TYPES.CATEGORY_HERO]: HeroCarouselBlock,
 };
 
 export function BlockRenderer({ block, context = {} }) {
