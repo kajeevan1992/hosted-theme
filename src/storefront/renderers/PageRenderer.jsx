@@ -1,5 +1,6 @@
 import React from 'react';
 import BlockRenderer from './BlockRenderer';
+import Breadcrumbs from '../layouts/Breadcrumbs';
 
 export function PageRenderer({ page, context = {} }) {
   if (!page) {
@@ -14,9 +15,16 @@ export function PageRenderer({ page, context = {} }) {
   }
 
   const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+  const breadcrumbs = Array.isArray(page.breadcrumbs) ? page.breadcrumbs : [];
 
   return (
     <div className="space-y-6 py-6">
+      {breadcrumbs.length ? (
+        <div className="mx-auto max-w-[1280px] px-5">
+          <Breadcrumbs items={breadcrumbs} />
+        </div>
+      ) : null}
+
       {blocks.map((block) => (
         <div
           key={block.id || `${block.type}-${Math.random()}`}
