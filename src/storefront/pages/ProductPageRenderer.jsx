@@ -1,13 +1,14 @@
 import React from 'react';
-import PageRenderer from '../renderers/PageRenderer';
 import createProductPagePayload from '../data/productPagePayload';
+import ProductPageComposerV2 from './ProductPageComposerV2';
 
 export function ProductPageRenderer({ product = {} }) {
   const payload = createProductPagePayload(product);
 
   return (
-    <PageRenderer
+    <ProductPageComposerV2
       page={payload}
+      product={product}
       context={{
         pageType: 'product',
         product,
