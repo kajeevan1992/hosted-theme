@@ -77,9 +77,11 @@ export function extractPricingRows(product = {}) {
 export function buildSelectedPayload({ product, selections, quantity, deliveryIndex = 0, delivery = [] }) {
   return {
     productId: product?.id,
+    productSlug: String(product?.slug || '').replace(/^\//, ''),
     slug: String(product?.slug || '').replace(/^\//, ''),
     quantity,
     selections,
+    options: selections,
     delivery: delivery[deliveryIndex] || null,
   };
 }
@@ -149,7 +151,51 @@ export function persistLocalCartItem(item) {
   return summary;
 }
 
+function priceValueFromResolvedData(data = {}) {
+  const minor = data.netMinor ?? data.priceMinor ?? data.grossMinor ?? data.totalMinor ?? data.resolvedConfig?.priceMinor;
+  if (minor !== undefined && minor !== null && minor !== '') return Number(minor) / 100;
+  const major = data.price ?? data.total ?? data.totalPrice ?? data.priceExVat;
+  if (major !== undefined && major !== null && major !== '') return Number(major);
+  return 0;
+}
+
+export async function requestResolvedConfig({ product, selections = {}, quantity, delivery }) {
+  const payload = buildSelectedPayload({ product, selections, quantity, deliveryIndex: 0, delivery: [delivery] });
+  const response = await fetch(`${INTERNAL_API_BASE}/api/internal/catalog/pricing-resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await response.json().catch(() => ({}));
+  const data = json?.data || json || {};
+
+  if (!response.ok || json?.ok === false) {
+    const error = new Error(json?.error || data?.error || `pricing-resolve failed with ${response.status}`);
+    error.payload = data;
+    throw error;
+  }
+
+  return {
+    ok: true,
+    source: '/api/internal/catalog/pricing-resolve',
+    price: priceValueFromResolvedData(data),
+    resolvedConfig: data.resolvedConfig || null,
+    quantityRows: data.quantityRows || data.resolvedConfig?.quantityRows || [],
+    deliveryRows: data.deliveryRows || data.resolvedConfig?.deliveryRows || [],
+    selections: data.selections || data.resolvedConfig?.selections || selections,
+    messages: data.resolvedConfig?.messages || data.messages || [],
+    appliedActions: data.resolvedConfig?.appliedActions || data.appliedActions || [],
+    matchedRow: data.matchedRow || data.resolvedConfig?.matchedRow || null,
+    raw: data,
+  };
+}
+
 export async function requestLivePrice({ product, selections, quantity, delivery }) {
+  try {
+    return await requestResolvedConfig({ product, selections, quantity, delivery });
+  } catch {}
+
   const slug = String(product?.slug || product?.id || '').replace(/^\//, '');
   const payload = buildSelectedPayload({ product, selections, quantity, deliveryIndex: 0, delivery: [delivery] });
   const endpoints = [
