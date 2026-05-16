@@ -5,7 +5,9 @@ const PRODUCT_FETCH_TIMEOUT_MS = 4500;
 
 function getApiBaseCandidates() {
   const candidates = [
+    import.meta.env.VITE_INTERNAL_STOREFRONT_BASE_URL,
     import.meta.env.VITE_INTERNAL_API_BASE,
+    import.meta.env.VITE_ADMIN_BASE_URL,
     typeof window !== 'undefined' ? window.__HOLO_INTERNAL_API_BASE__ : '',
     typeof window !== 'undefined' ? window.__HOLO_STOREFRONT_API_BASE__ : '',
     typeof window !== 'undefined' ? window.localStorage?.getItem('holo:internal-api-base') : '',
@@ -22,14 +24,16 @@ function getApiBaseCandidates() {
   ];
 }
 
-async function fetchJsonWithTimeout(url) {
+async function fetchJsonWithTimeout(url, init = {}) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), PRODUCT_FETCH_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(init.headers || {}) },
       signal: controller.signal,
+      credentials: 'include',
+      ...init,
     });
 
     if (!response.ok) {
@@ -50,6 +54,26 @@ async function fetchJsonWithTimeout(url) {
 function normalizeProductPayload(payload) {
   if (!payload) return null;
 
+  if (payload?.source === 'internal-storefront-resolver' && payload?.product) {
+    return {
+      ...payload.product,
+      __resolvedStorefrontPayload: payload,
+      __hydrationStatus: 'resolved-config-api',
+      optionGroups: payload.resolvedOptions || payload.optionGroups || [],
+      deliveryOptions: payload.deliveryOptions || [],
+      productMode: payload.productMode,
+      pricing: payload.pricing,
+      appliedRules: payload.appliedRules,
+      checkout: payload.checkout,
+      templateRules: payload.templateRules,
+      selectedOptions: payload.selectedOptions,
+    };
+  }
+
+  if (payload?.data?.source === 'internal-storefront-resolver' && payload?.data?.product) {
+    return normalizeProductPayload(payload.data);
+  }
+
   if (payload?.data?.product) return payload.data.product;
   if (payload?.data?.item) return payload.data.item;
   if (payload?.data) return payload.data;
@@ -66,6 +90,7 @@ export async function fetchStorefrontProduct(slug) {
 
   const cleanSlug = encodeURIComponent(String(slug).replace(/^\//, ''));
   const endpoints = [
+    `/api/internal/storefront/products/${cleanSlug}/resolved`,
     `/api/internal/catalog/products/${cleanSlug}`,
     `/api/internal/catalog/storefront-products/${cleanSlug}`,
     `/api/internal/catalog/storefront-products?slug=${cleanSlug}`,
