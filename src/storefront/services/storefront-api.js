@@ -1,6 +1,7 @@
 import { getFallbackProduct } from '../data/fallbackProducts';
 
 const DEV_INTERNAL_API_BASE = 'http://yccfmd4h13a1y6hi691si73r.13.61.22.39.sslip.io';
+const PRODUCT_FETCH_TIMEOUT_MS = 4500;
 
 function getApiBaseCandidates() {
   const candidates = [
@@ -19,6 +20,31 @@ function getApiBaseCandidates() {
         .map((value) => String(value).replace(/\/$/, ''))
     ),
   ];
+}
+
+async function fetchJsonWithTimeout(url) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), PRODUCT_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API ${url} failed with ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`API ${url} did not return JSON`);
+    }
+
+    return response.json();
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function normalizeProductPayload(payload) {
@@ -50,14 +76,7 @@ export async function fetchStorefrontProduct(slug) {
   for (const base of getApiBaseCandidates()) {
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(`${base}${endpoint}`, { headers: { Accept: 'application/json' } });
-
-        if (!response.ok) {
-          lastError = new Error(`API ${base}${endpoint} failed with ${response.status}`);
-          continue;
-        }
-
-        const payload = await response.json();
+        const payload = await fetchJsonWithTimeout(`${base}${endpoint}`);
         const normalized = normalizeProductPayload(payload);
 
         if (normalized && Object.keys(normalized).length) {
