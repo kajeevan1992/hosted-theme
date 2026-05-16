@@ -9,10 +9,57 @@ function objectValue(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function pick(obj, keys) {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj?.[key] !== null && obj?.[key] !== '') return obj[key];
+  }
+  return undefined;
+}
+
+function pairKey(item) {
+  return pick(item, ['groupKey', 'group', 'groupName', 'optionGroup', 'optionGroupName', 'optionKey', 'key', 'field', 'name', 'title']);
+}
+
+function pairValue(item, key) {
+  const value = pick(item, ['selectedValue', 'optionValue', 'value', 'csvValue', 'matrixValue', 'selected', 'choice']);
+  if (value !== undefined) return value;
+  const label = pick(item, ['optionLabel', 'label']);
+  if (label !== undefined && norm(label) !== norm(key)) return label;
+  return undefined;
+}
+
+function flattenArrayPart(part, merged) {
+  if (!Array.isArray(part)) return;
+  part.forEach((item) => {
+    if (Array.isArray(item) && item.length >= 2) {
+      merged[item[0]] = item[1];
+      return;
+    }
+    if (!objectValue(item)) return;
+    const key = pairKey(item);
+    const value = pairValue(item, key);
+    if (key !== undefined && value !== undefined) merged[key] = value;
+  });
+}
+
 function source(row = {}) {
   const merged = {};
-  [row.options, row.selections, row.config, row.configuration, row.attributes, row.dimensions, row.values].forEach((part) => {
+  [
+    row.options,
+    row.optionValues,
+    row.selectedOptions,
+    row.csvOptions,
+    row.pricingOptions,
+    row.variantOptions,
+    row.selections,
+    row.config,
+    row.configuration,
+    row.attributes,
+    row.dimensions,
+    row.values,
+  ].forEach((part) => {
     if (objectValue(part)) Object.assign(merged, part);
+    if (Array.isArray(part)) flattenArrayPart(part, merged);
   });
   Object.keys(row || {}).forEach((key) => {
     if (!objectValue(row[key]) && !Array.isArray(row[key])) merged[key] = row[key];
