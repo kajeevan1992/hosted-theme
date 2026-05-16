@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-LIVE-CONFIG-v2026-05-14-VERIFY-01';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-7-RESOLVED-CONFIG-v2026-05-16';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
