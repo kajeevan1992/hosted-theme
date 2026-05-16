@@ -1,6 +1,8 @@
 const INTERNAL_API_BASE =
+  import.meta.env.VITE_INTERNAL_STOREFRONT_BASE_URL ||
   import.meta.env.VITE_INTERNAL_API_BASE ||
   window.__HOLO_INTERNAL_API_BASE__ ||
+  window.__HOLO_STOREFRONT_API_BASE__ ||
   '';
 
 const CART_KEY = 'holo-cart';
@@ -16,7 +18,7 @@ export function normaliseDisplayType(group = {}) {
     ''
   ).toLowerCase();
 
-  if (['card', 'cards', 'tile', 'tiles', 'image-card-grid', 'text-card-grid', 'visual-card', 'visual-cards'].includes(raw)) return 'cards';
+  if (['card', 'cards', 'tile', 'tiles', 'image-card-grid', 'text-card-grid', 'visual-card', 'visual-cards', 'image-cards'].includes(raw)) return 'cards';
   if (['quantity', 'quantity-grid', 'price-grid', 'pricing-grid', 'matrix'].includes(raw)) return 'quantity-grid';
   if (['select', 'dropdown', 'combobox'].includes(raw)) return 'dropdown';
   if (['checkbox', 'checkboxes', 'tick', 'tickbox', 'multi'].includes(raw)) return 'checkbox';
@@ -27,7 +29,10 @@ export function normaliseDisplayType(group = {}) {
 }
 
 export function extractOptionGroups(product = {}) {
+  const resolved = product.__resolvedStorefrontPayload?.resolvedOptions || product.__resolvedStorefrontPayload?.optionGroups;
   const candidates = [
+    resolved,
+    product.resolvedOptions,
     product.optionGroups,
     product.options,
     product.configurator?.optionGroups,
@@ -115,6 +120,9 @@ export function findLocalPrice({ product, quantities = [], quantity, selections 
   const quantityRow = quantities.find((item) => String(item.qty) === String(quantity));
   if (quantityRow?.price !== undefined && quantityRow?.price !== null) return Number(quantityRow.price);
 
+  const resolvedMinor = product.pricing?.selected?.totalMinor || product.__resolvedStorefrontPayload?.pricing?.selected?.totalMinor;
+  if (resolvedMinor !== undefined && resolvedMinor !== null) return Number(resolvedMinor) / 100;
+
   if (typeof product?.price === 'string') {
     const parsed = Number(product.price.replace(/[^0-9.]/g, ''));
     if (!Number.isNaN(parsed)) return parsed;
@@ -152,18 +160,47 @@ export function persistLocalCartItem(item) {
 }
 
 function priceValueFromResolvedData(data = {}) {
-  const minor = data.netMinor ?? data.priceMinor ?? data.grossMinor ?? data.totalMinor ?? data.resolvedConfig?.priceMinor;
+  const minor = data.pricing?.selected?.totalMinor ?? data.selected?.totalMinor ?? data.netMinor ?? data.priceMinor ?? data.grossMinor ?? data.totalMinor ?? data.resolvedConfig?.priceMinor;
   if (minor !== undefined && minor !== null && minor !== '') return Number(minor) / 100;
   const major = data.price ?? data.total ?? data.totalPrice ?? data.priceExVat;
   if (major !== undefined && major !== null && major !== '') return Number(major);
   return 0;
 }
 
-export async function requestResolvedConfig({ product, selections = {}, quantity, delivery }) {
-  const payload = buildSelectedPayload({ product, selections, quantity, deliveryIndex: 0, delivery: [delivery] });
-  const response = await fetch(`${INTERNAL_API_BASE}/api/internal/catalog/pricing-resolve`, {
+function normalizeResolverProductData(data = {}, selections = {}) {
+  const pricing = data.pricing || {};
+  const resolvedOptions = data.resolvedOptions || data.optionGroups || data.resolvedConfig?.groups || [];
+  const deliveryRows = data.deliveryOptions || data.resolvedConfig?.deliveryRows || [];
+  const messages = data.appliedRules?.messages || data.checkout?.messages || data.messages || data.resolvedConfig?.messages || [];
+  return {
+    ok: true,
+    source: data.source || '/api/internal/storefront/*',
+    price: priceValueFromResolvedData(data),
+    resolvedConfig: {
+      ...(data.resolvedConfig || {}),
+      groups: resolvedOptions,
+      messages,
+      checkout: data.checkout,
+      productMode: data.productMode,
+      pricing,
+    },
+    quantityRows: data.quantityRows || data.resolvedConfig?.quantityRows || [],
+    deliveryRows,
+    selections: data.selectedOptions || data.selections || data.resolvedConfig?.selections || selections,
+    messages,
+    appliedActions: data.appliedRules?.actions || data.appliedActions || [],
+    matchedRow: data.matchedRow || data.resolvedConfig?.matchedRow || null,
+    checkout: data.checkout,
+    pricing,
+    raw: data,
+  };
+}
+
+async function postJson(endpoint, payload) {
+  const response = await fetch(`${INTERNAL_API_BASE}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
 
@@ -171,24 +208,55 @@ export async function requestResolvedConfig({ product, selections = {}, quantity
   const data = json?.data || json || {};
 
   if (!response.ok || json?.ok === false) {
-    const error = new Error(json?.error || data?.error || `pricing-resolve failed with ${response.status}`);
+    const error = new Error(json?.error || data?.error || `${endpoint} failed with ${response.status}`);
     error.payload = data;
     throw error;
   }
 
-  return {
-    ok: true,
-    source: '/api/internal/catalog/pricing-resolve',
-    price: priceValueFromResolvedData(data),
-    resolvedConfig: data.resolvedConfig || null,
-    quantityRows: data.quantityRows || data.resolvedConfig?.quantityRows || [],
-    deliveryRows: data.deliveryRows || data.resolvedConfig?.deliveryRows || [],
-    selections: data.selections || data.resolvedConfig?.selections || selections,
-    messages: data.resolvedConfig?.messages || data.messages || [],
-    appliedActions: data.resolvedConfig?.appliedActions || data.appliedActions || [],
-    matchedRow: data.matchedRow || data.resolvedConfig?.matchedRow || null,
-    raw: data,
-  };
+  return data;
+}
+
+export async function requestResolvedConfig({ product, selections = {}, quantity, delivery }) {
+  const payload = buildSelectedPayload({ product, selections, quantity, deliveryIndex: 0, delivery: [delivery] });
+  const productKey = String(product?.slug || product?.id || '').replace(/^\//, '');
+
+  try {
+    const cartPrice = await postJson('/api/internal/storefront/cart/price', {
+      productId: product?.id || productKey,
+      slug: productKey,
+      quantity,
+      selections,
+      delivery,
+    });
+    return normalizeResolverProductData(cartPrice, selections);
+  } catch (firstError) {
+    try {
+      const resolvedProduct = await postJson(`/api/internal/storefront/products/${encodeURIComponent(productKey)}/resolved`, {
+        selections: { ...selections, quantity },
+        delivery,
+      });
+      return normalizeResolverProductData(resolvedProduct, selections);
+    } catch {}
+
+    try {
+      const legacy = await postJson('/api/internal/catalog/pricing-resolve', payload);
+      return {
+        ok: true,
+        source: '/api/internal/catalog/pricing-resolve',
+        price: priceValueFromResolvedData(legacy),
+        resolvedConfig: legacy.resolvedConfig || null,
+        quantityRows: legacy.quantityRows || legacy.resolvedConfig?.quantityRows || [],
+        deliveryRows: legacy.deliveryRows || legacy.resolvedConfig?.deliveryRows || [],
+        selections: legacy.selections || legacy.resolvedConfig?.selections || selections,
+        messages: legacy.resolvedConfig?.messages || legacy.messages || [],
+        appliedActions: legacy.resolvedConfig?.appliedActions || legacy.appliedActions || [],
+        matchedRow: legacy.matchedRow || legacy.resolvedConfig?.matchedRow || null,
+        raw: legacy,
+      };
+    } catch (legacyError) {
+      throw firstError || legacyError;
+    }
+  }
 }
 
 export async function requestLivePrice({ product, selections, quantity, delivery }) {
@@ -255,7 +323,14 @@ export async function requestAddToCart({ product, selections, quantity, delivery
     config: selections,
     delivery,
     price: Number(price || 0),
+    checkout: product.checkout || product.__resolvedStorefrontPayload?.checkout || null,
+    pricing: product.pricing || product.__resolvedStorefrontPayload?.pricing || null,
   };
+
+  if (payload.checkout?.quoteRequired || payload.checkout?.blocked) {
+    payload.quoteRequired = Boolean(payload.checkout?.quoteRequired);
+    payload.checkoutBlocked = Boolean(payload.checkout?.blocked);
+  }
 
   const endpoints = [
     '/api/internal/cart/items',
