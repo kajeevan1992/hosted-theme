@@ -1,8 +1,8 @@
 import React from 'react';
-import HoloDynamicProductTemplate from './HoloDynamicProductTemplate';
+import HoloMatrixProductTemplate from './HoloMatrixProductTemplate';
 
 export function ProductPageRenderer({ product = {} }) {
-  return <HoloDynamicProductTemplate product={product} />;
+  return <HoloMatrixProductTemplate product={product} />;
 }
 
 export default ProductPageRenderer;
