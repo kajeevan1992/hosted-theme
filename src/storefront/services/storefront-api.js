@@ -12,7 +12,13 @@ function getApiBaseCandidates() {
     DEV_INTERNAL_API_BASE,
   ];
 
-  return [...new Set(candidates.filter((value) => value !== undefined && value !== null).map((value) => String(value).replace(/\/$/, ''))))];
+  return [
+    ...new Set(
+      candidates
+        .filter((value) => value !== undefined && value !== null)
+        .map((value) => String(value).replace(/\/$/, ''))
+    ),
+  ];
 }
 
 function normalizeProductPayload(payload) {
