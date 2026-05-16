@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getFallbackProduct } from '../data/fallbackProducts';
 import { fetchStorefrontProduct } from '../services/storefront-api';
 import mapBackendProductToStorefrontPayload from '../services/productPayloadMapper';
 
@@ -10,13 +11,25 @@ function normalizeSlug(pathname = '') {
     .trim();
 }
 
+function fallbackForSlug(slug) {
+  const fallback = getFallbackProduct(slug);
+  if (!fallback) return null;
+  return mapBackendProductToStorefrontPayload({
+    ...fallback,
+    __isFallbackProduct: true,
+    __hydrationStatus: 'fallback-rendered',
+  });
+}
+
 export function useStorefrontProduct(pathname) {
   const slug = useMemo(() => normalizeSlug(pathname), [pathname]);
+  const fallbackProduct = useMemo(() => fallbackForSlug(slug), [slug]);
 
   const [state, setState] = useState({
-    loading: true,
+    loading: !fallbackProduct,
+    hydrating: Boolean(fallbackProduct),
     error: null,
-    product: null,
+    product: fallbackProduct,
   });
 
   useEffect(() => {
@@ -26,23 +39,29 @@ export function useStorefrontProduct(pathname) {
       if (!slug) {
         setState({
           loading: false,
+          hydrating: false,
           error: 'Missing product slug',
           product: null,
         });
         return;
       }
 
+      setState({
+        loading: !fallbackProduct,
+        hydrating: true,
+        error: null,
+        product: fallbackProduct,
+      });
+
       try {
-        setState((prev) => ({ ...prev, loading: true, error: null }));
-
         const backendProduct = await fetchStorefrontProduct(slug);
-
         if (!active) return;
 
         const mapped = mapBackendProductToStorefrontPayload(backendProduct);
 
         setState({
           loading: false,
+          hydrating: false,
           error: null,
           product: mapped,
         });
@@ -51,8 +70,15 @@ export function useStorefrontProduct(pathname) {
 
         setState({
           loading: false,
-          error: error?.message || 'Unable to load product',
-          product: null,
+          hydrating: false,
+          error: fallbackProduct ? null : error?.message || 'Unable to load product',
+          product: fallbackProduct
+            ? {
+                ...fallbackProduct,
+                __apiError: error?.message || 'Unable to load full API product',
+                __hydrationStatus: 'fallback-after-api-error',
+              }
+            : null,
         });
       }
     }
@@ -62,7 +88,7 @@ export function useStorefrontProduct(pathname) {
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [slug, fallbackProduct]);
 
   return {
     slug,
