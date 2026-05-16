@@ -1,0 +1,39 @@
+export const BLOCK_TYPES = {
+  HERO: 'hero',
+  FEATURED_PRODUCTS: 'featured-products',
+  CATEGORY_STRIP: 'category-strip',
+  TRUST_BADGES: 'trust-badges',
+  TESTIMONIALS: 'testimonials',
+  FAQ: 'faq',
+  PRODUCT_CONFIGURATOR: 'product-configurator',
+  PRODUCT_GALLERY: 'product-gallery',
+  PRODUCT_SPECS: 'product-specs',
+  PRODUCT_DELIVERY: 'product-delivery',
+  NEWSLETTER: 'newsletter',
+  CUSTOM_HTML: 'custom-html',
+};
+
+export const HOME_LAYOUT = [
+  BLOCK_TYPES.HERO,
+  BLOCK_TYPES.CATEGORY_STRIP,
+  BLOCK_TYPES.FEATURED_PRODUCTS,
+  BLOCK_TYPES.TRUST_BADGES,
+  BLOCK_TYPES.TESTIMONIALS,
+  BLOCK_TYPES.FAQ,
+  BLOCK_TYPES.NEWSLETTER,
+];
+
+export const PRODUCT_LAYOUT = [
+  BLOCK_TYPES.PRODUCT_GALLERY,
+  BLOCK_TYPES.PRODUCT_CONFIGURATOR,
+  BLOCK_TYPES.PRODUCT_DELIVERY,
+  BLOCK_TYPES.PRODUCT_SPECS,
+  BLOCK_TYPES.FAQ,
+  BLOCK_TYPES.NEWSLETTER,
+];
+
+export default {
+  BLOCK_TYPES,
+  HOME_LAYOUT,
+  PRODUCT_LAYOUT,
+};
