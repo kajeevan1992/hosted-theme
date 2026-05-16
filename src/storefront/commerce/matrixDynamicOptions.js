@@ -5,8 +5,19 @@ export function matrixRows(product = {}) {
 const norm = (value) => String(value ?? '').trim().toLowerCase();
 const slug = (value) => String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
+function objectValue(value) {
+  return value && typeof value === 'object' && !Array.isArray(value);
+}
+
 function source(row = {}) {
-  return row.options && typeof row.options === 'object' ? row.options : row;
+  const merged = {};
+  [row.options, row.selections, row.config, row.configuration, row.attributes, row.dimensions, row.values].forEach((part) => {
+    if (objectValue(part)) Object.assign(merged, part);
+  });
+  Object.keys(row || {}).forEach((key) => {
+    if (!objectValue(row[key]) && !Array.isArray(row[key])) merged[key] = row[key];
+  });
+  return merged;
 }
 
 function niceLabel(key) {
@@ -31,7 +42,20 @@ function isQtyKey(key) {
 
 function ignoreKey(key) {
   const k = slug(key);
-  return ['id', 'price', 'price-minor', 'supplier-price-minor', 'total', 'total-minor', 'currency', 'created-at', 'updated-at'].includes(k);
+  return [
+    'id', 'product-id', 'slug', 'sku', 'name', 'title', 'description',
+    'price', 'price-minor', 'supplier-price', 'supplier-price-minor', 'cost', 'cost-minor',
+    'total', 'total-minor', 'currency', 'vat', 'vat-rate',
+    'recommended', 'default', 'selected', 'visible', 'hidden', 'disabled', 'enabled',
+    'created-at', 'updated-at', 'metadata-json', 'raw', 'source'
+  ].includes(k);
+}
+
+function ignoreValue(value) {
+  if (value === undefined || value === null || value === '') return true;
+  if (typeof value === 'boolean') return true;
+  const v = norm(value);
+  return ['true', 'false', 'yes', 'no', 'null', 'undefined'].includes(v);
 }
 
 function displayType(key) {
@@ -55,7 +79,7 @@ export function inferGroupsFromMatrix(product = {}) {
     const values = [];
     rows.forEach((row) => {
       const value = rowValue(row, key);
-      if (value !== undefined && value !== null && value !== '' && !values.some((item) => norm(item) === norm(value))) values.push(value);
+      if (!ignoreValue(value) && !values.some((item) => norm(item) === norm(value))) values.push(value);
     });
 
     return {
@@ -79,7 +103,7 @@ export function inferGroupsFromMatrix(product = {}) {
         disabled: false,
       })),
     };
-  }).filter((group) => group.options.length);
+  }).filter((group) => group.options.length > 1 || isQtyKey(group.key));
 }
 
 export function matrixRowMatches(row = {}, selections = {}, quantity = null) {
@@ -116,8 +140,11 @@ export function matrixPrice(product = {}, selections = {}, quantity = null) {
 }
 
 export function matrixQuantityRows(product = {}, quantityValues = [], selections = {}) {
-  return quantityValues.map((item, index) => {
+  const rows = quantityValues.map((item, index) => {
     const qty = item?.qty || item?.quantity || item?.value || item?.label || item;
-    return { qty, price: matrixPrice(product, selections, qty) ?? 0, recommended: Boolean(item?.recommended || item?.default || index === 0) };
+    const price = matrixPrice(product, selections, qty);
+    return { qty, price: price ?? 0, valid: price !== null, recommended: Boolean(item?.recommended || item?.default || index === 0) };
   });
+  const validRows = rows.filter((row) => row.valid && Number(row.price) > 0);
+  return validRows.length ? validRows : rows;
 }
