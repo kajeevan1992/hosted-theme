@@ -1,5 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import {
+  findLocalPrice,
+  normaliseDisplayType,
+  requestAddToCart,
+  requestLivePrice,
+} from '../commerce/liveConfiguratorEngine';
 
 const BRAND = {
   bg: '#F7F8FC',
@@ -18,8 +24,25 @@ function currency(value) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(Number(value || 0));
 }
 
+function normaliseOptionValue(value, optionIndex) {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return { value: String(value), label: String(value), recommended: optionIndex === 0 };
+  }
+
+  return {
+    value: String(value.value || value.label || value.name || value.key || `value-${optionIndex}`),
+    label: String(value.label || value.name || value.value || value.key || `Value ${optionIndex + 1}`),
+    sublabel: value.sublabel || value.subtitle || value.helpText || value.description || '',
+    image: value.image || value.thumbnail || value.assetUrl || '',
+    colour: value.colour || value.color || value.hex || '',
+    recommended: Boolean(value.recommended || value.default || optionIndex === 0),
+    muted: Boolean(value.disabled),
+  };
+}
+
 function normalizeOptions(product = {}) {
   const raw = product.optionGroups || product.options || [];
+
   if (Array.isArray(raw) && raw.length) {
     return raw.map((group, index) => {
       const values = group.values || group.options || [];
@@ -27,28 +50,18 @@ function normalizeOptions(product = {}) {
         key: group.key || group.id || `option-${index}`,
         label: group.label || group.name || group.key || `Option ${index + 1}`,
         valueLabel: group.valueLabel || group.selectedLabel || '',
-        style: group.style || group.displayType || group.storefrontDisplayType || (values.length > 3 ? 'tile' : 'pill'),
-        options: values.map((value, optionIndex) => {
-          if (typeof value === 'string' || typeof value === 'number') {
-            return { value: String(value), label: String(value), recommended: optionIndex === 0 };
-          }
-          return {
-            value: String(value.value || value.label || value.name || value.key || `value-${optionIndex}`),
-            label: String(value.label || value.name || value.value || value.key || `Value ${optionIndex + 1}`),
-            sublabel: value.sublabel || value.subtitle || value.helpText || '',
-            recommended: Boolean(value.recommended || value.default || optionIndex === 0),
-            muted: Boolean(value.disabled),
-          };
-        }),
+        style: normaliseDisplayType(group),
+        required: group.required !== false,
+        options: values.map(normaliseOptionValue),
       };
     });
   }
 
   return [
-    { key: 'size', label: 'Size', valueLabel: '85 × 55 mm', style: 'tile', options: [{ value: 'Standard', label: 'Standard', sublabel: '85 × 55 mm', recommended: true }, { value: 'Portrait', label: 'Portrait', sublabel: '55 × 85 mm' }, { value: 'Folded Portrait', label: 'Folded Portrait', sublabel: '110 × 85 mm' }, { value: 'Landscape Folded', label: 'Landscape Folded', sublabel: '170 × 55 mm' }] },
+    { key: 'size', label: 'Size', valueLabel: '85 × 55 mm', style: 'cards', options: [{ value: 'Standard', label: 'Standard', sublabel: '85 × 55 mm', recommended: true }, { value: 'Portrait', label: 'Portrait', sublabel: '55 × 85 mm' }, { value: 'Folded Portrait', label: 'Folded Portrait', sublabel: '110 × 85 mm' }, { value: 'Landscape Folded', label: 'Landscape Folded', sublabel: '170 × 55 mm' }] },
     { key: 'materialType', label: 'Material Type', valueLabel: 'Matt', style: 'pill', options: [{ value: 'Matt', label: 'Matt', recommended: true }, { value: 'Glossy', label: 'Glossy' }, { value: 'Eco', label: 'Eco' }, { value: 'Uncoated', label: 'Uncoated' }, { value: 'Special', label: 'Special' }] },
-    { key: 'paperType', label: 'Paper type', valueLabel: '400 gsm Silk', style: 'tile', options: [{ value: 'Matte (Silk) 300 gsm', label: 'Matte (Silk) 300 gsm' }, { value: 'Matte (Silk) 350 gsm', label: 'Matte (Silk) 350 gsm' }, { value: 'Matte (Silk) 400 gsm', label: 'Matte (Silk) 400 gsm', recommended: true }, { value: 'Matte (Silk) 450 gsm', label: 'Matte (Silk) 450 gsm' }] },
-    { key: 'finishing', label: 'Finishing', valueLabel: 'No finishing', style: 'tile', options: [{ value: 'No finishing', label: 'No finishing' }, { value: 'Double-sided Matte lamination', label: 'Double-sided Matte lamination', recommended: true }, { value: 'Double-sided Gloss lamination', label: 'Double-sided Gloss lamination' }, { value: 'Double-sided UV Glossy', label: 'Double-sided UV Glossy' }] },
+    { key: 'paperType', label: 'Paper type', valueLabel: '400 gsm Silk', style: 'cards', options: [{ value: 'Matte (Silk) 300 gsm', label: 'Matte (Silk) 300 gsm' }, { value: 'Matte (Silk) 350 gsm', label: 'Matte (Silk) 350 gsm' }, { value: 'Matte (Silk) 400 gsm', label: 'Matte (Silk) 400 gsm', recommended: true }, { value: 'Matte (Silk) 450 gsm', label: 'Matte (Silk) 450 gsm' }] },
+    { key: 'finishing', label: 'Finishing', valueLabel: 'No finishing', style: 'cards', options: [{ value: 'No finishing', label: 'No finishing' }, { value: 'Double-sided Matte lamination', label: 'Double-sided Matte lamination', recommended: true }, { value: 'Double-sided Gloss lamination', label: 'Double-sided Gloss lamination' }, { value: 'Double-sided UV Glossy', label: 'Double-sided UV Glossy' }] },
     { key: 'printing', label: 'Printing', valueLabel: 'Double-sided', style: 'pill', options: [{ value: 'Single-sided printing', label: 'Single-sided printing' }, { value: 'Double-sided printing', label: 'Double-sided printing', recommended: true }] },
     { key: 'corners', label: 'Corners', valueLabel: 'Straight corners', style: 'pill', options: [{ value: 'Straight corners', label: 'Straight corners' }, { value: 'Rounded Corners + £8.00', label: 'Rounded Corners + £8.00' }] },
   ];
@@ -63,6 +76,7 @@ function normalizeQuantities(product = {}) {
       recommended: Boolean(row.recommended || row.default || index === 0),
     }));
   }
+
   return [
     { qty: 50, price: 11.29 }, { qty: 100, price: 13.49 }, { qty: 250, price: 16.99 }, { qty: 500, price: 21.99, recommended: true },
     { qty: 1000, price: 27.99 }, { qty: 2500, price: 43.99 }, { qty: 5000, price: 85.99 }, { qty: 10000, price: 128.99 },
@@ -72,6 +86,7 @@ function normalizeQuantities(product = {}) {
 function normalizeDelivery(product = {}) {
   const rows = product.deliveryOptions || product.delivery?.services || [];
   if (Array.isArray(rows) && rows.length) return rows.map((row, index) => ({ day: row.day || row.label || row.name || 'Delivery', latest: row.latest || row.description || 'Latest delivery shown at checkout', addon: row.addon || row.extra || null, selected: row.selected || index === 0 }));
+
   return [
     { day: 'Monday April 27', latest: 'Latest Tuesday April 28', selected: true },
     { day: 'Thursday April 23', latest: 'Latest Friday April 24', addon: '+ £1.00' },
@@ -87,6 +102,71 @@ function Accordion({ title, defaultOpen = false, children }) {
       </summary>
       <div className="border-t px-4 py-4" style={{ borderColor: BRAND.line }}>{children}</div>
     </details>
+  );
+}
+
+function OptionButton({ group, option, active, onClick }) {
+  const display = group.style;
+
+  if (display === 'dropdown') return null;
+
+  if (display === 'checkbox') {
+    return (
+      <button onClick={onClick} className="inline-flex items-center gap-2 rounded-[10px] border bg-white px-4 py-3 text-[13px] font-semibold" style={{ borderColor: active ? BRAND.primary : BRAND.line }}>
+        <span className="grid h-5 w-5 place-items-center rounded border" style={{ borderColor: active ? BRAND.primary : BRAND.line, backgroundColor: active ? BRAND.primary : 'white', color: 'white' }}>{active ? '✓' : ''}</span>
+        {option.label || option.value}
+      </button>
+    );
+  }
+
+  if (display === 'swatch') {
+    return (
+      <button onClick={onClick} className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2 text-[12px] font-bold" style={{ borderColor: active ? BRAND.primary : BRAND.line }}>
+        <span className="h-6 w-6 rounded-full border" style={{ backgroundColor: option.colour || '#EEF3F7', borderColor: BRAND.line }} />
+        {option.label || option.value}
+      </button>
+    );
+  }
+
+  if (display === 'cards') {
+    return (
+      <button onClick={onClick} className="relative rounded-[14px] border bg-white p-4 text-center shadow-[0_8px_18px_rgba(0,0,0,0.02)]" style={{ borderColor: active ? BRAND.primary : BRAND.line, boxShadow: active ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none', opacity: option.muted ? 0.72 : 1 }}>
+        {option.image ? <img src={option.image} alt="" className="mx-auto mb-4 h-[68px] w-[92px] rounded-[10px] object-cover" /> : <div className="mx-auto mb-4 h-[68px] w-[92px] rounded-[10px] bg-[linear-gradient(135deg,#f7f7f7,#eceff1)]" />}
+        <div className="text-[13px] font-bold leading-5" style={{ color: BRAND.ink }}>{option.label || option.value}</div>
+        {option.sublabel ? <div className="mt-1 text-[12px]" style={{ color: BRAND.muted }}>{option.sublabel}</div> : null}
+        {option.recommended ? <div className="absolute inset-x-0 bottom-0 rounded-b-[12px] py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white" style={{ backgroundColor: BRAND.primary }}>Recommended</div> : null}
+      </button>
+    );
+  }
+
+  return (
+    <button onClick={onClick} className="relative rounded-[10px] border bg-white px-4 py-3 text-[13px] font-semibold" style={{ borderColor: active ? BRAND.primary : BRAND.line, boxShadow: active ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none' }}>
+      {option.label || option.value}
+      {option.recommended ? <span className="ml-2 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white" style={{ backgroundColor: BRAND.primary }}>Recommended</span> : null}
+    </button>
+  );
+}
+
+function OptionGroup({ group, selectedValue, onChange }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]" style={{ color: BRAND.ink }}>
+        <span className="text-[15px] font-semibold tracking-normal">{group.label}:</span>
+        <span className="text-[15px] font-semibold tracking-normal" style={{ color: BRAND.primary }}>{selectedValue || group.valueLabel}</span>
+      </div>
+
+      {group.style === 'dropdown' ? (
+        <select value={selectedValue || ''} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[12px] border bg-white px-4 text-[13px] font-semibold" style={{ borderColor: BRAND.line, color: BRAND.ink }}>
+          {group.options.map((option) => <option key={option.value} value={option.value}>{option.label || option.value}</option>)}
+        </select>
+      ) : (
+        <div className={group.style === 'cards' ? 'grid gap-3 sm:grid-cols-2 xl:grid-cols-4' : 'flex flex-wrap gap-2'}>
+          {group.options.map((option) => (
+            <OptionButton key={option.value} group={group} option={option} active={selectedValue === option.value} onClick={() => onChange(option.value)} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -109,7 +189,50 @@ export function HoloOriginalProductTemplate({ product = {} }) {
   const [selectedQty, setSelectedQty] = useState(quantities.find((q) => q.recommended)?.qty || quantities[0]?.qty);
   const [selectedDelivery, setSelectedDelivery] = useState(0);
   const [selectedImage, setSelectedImage] = useState(0);
-  const currentPrice = quantities.find((q) => String(q.qty) === String(selectedQty))?.price || product.price || product.priceFromMinor / 100 || 0;
+  const [livePrice, setLivePrice] = useState(() => findLocalPrice({ product, quantities, quantity: quantities.find((q) => q.recommended)?.qty || quantities[0]?.qty }));
+  const [priceStatus, setPriceStatus] = useState('local');
+  const [cartStatus, setCartStatus] = useState('idle');
+
+  useEffect(() => {
+    setSelected(initialSelected);
+  }, [initialSelected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const localPrice = findLocalPrice({ product, quantities, quantity: selectedQty });
+    setLivePrice(localPrice);
+    setPriceStatus('checking');
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await requestLivePrice({ product, selections: selected, quantity: selectedQty, delivery: delivery[selectedDelivery] });
+        if (!cancelled) {
+          setLivePrice(result.price);
+          setPriceStatus('live');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLivePrice(localPrice);
+          setPriceStatus('local');
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [product, quantities, selected, selectedQty, selectedDelivery, delivery]);
+
+  const handleAddToCart = async () => {
+    setCartStatus('adding');
+    try {
+      await requestAddToCart({ product, selections: selected, quantity: selectedQty, delivery: delivery[selectedDelivery], price: livePrice });
+      setCartStatus('added');
+    } catch (error) {
+      setCartStatus('error');
+    }
+  };
 
   const title = product.name || product.title || 'Standard Business Cards';
   const description = product.description || 'Create lasting connections with affordable, professional business cards. Choose from multiple sizes, papers and finishes to match your brand identity.';
@@ -159,24 +282,16 @@ export function HoloOriginalProductTemplate({ product = {} }) {
           </div>
 
           <div className="space-y-5">
-            {groups.map((group) => (
-              <div key={group.key}>
-                <div className="mb-3 flex items-center gap-2 text-[18px] font-black tracking-[-0.03em]" style={{ color: BRAND.ink }}><span className="text-[15px] font-semibold tracking-normal">{group.label}:</span><span className="text-[15px] font-semibold tracking-normal" style={{ color: BRAND.primary }}>{selected[group.key] || group.valueLabel}</span></div>
-                {group.style === 'tile' || group.style === 'cards' ? (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{group.options.map((option) => { const active = selected[group.key] === option.value; return <button key={option.value} onClick={() => setSelected((prev) => ({ ...prev, [group.key]: option.value }))} className="relative rounded-[14px] border bg-white p-4 text-center shadow-[0_8px_18px_rgba(0,0,0,0.02)]" style={{ borderColor: active ? BRAND.primary : BRAND.line, boxShadow: active ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none', opacity: option.muted ? 0.72 : 1 }}><div className="mx-auto mb-4 h-[68px] w-[92px] rounded-[10px] bg-[linear-gradient(135deg,#f7f7f7,#eceff1)]" /><div className="text-[13px] font-bold leading-5" style={{ color: BRAND.ink }}>{option.label || option.value}</div>{option.sublabel ? <div className="mt-1 text-[12px]" style={{ color: BRAND.muted }}>{option.sublabel}</div> : null}{option.recommended ? <div className="absolute inset-x-0 bottom-0 rounded-b-[12px] py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white" style={{ backgroundColor: BRAND.primary }}>Recommended</div> : null}</button>; })}</div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">{group.options.map((option) => { const active = selected[group.key] === option.value; return <button key={option.value} onClick={() => setSelected((prev) => ({ ...prev, [group.key]: option.value }))} className="relative rounded-[10px] border bg-white px-4 py-3 text-[13px] font-semibold" style={{ borderColor: active ? BRAND.primary : BRAND.line, boxShadow: active ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none' }}>{option.label || option.value}{option.recommended ? <span className="ml-2 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-white" style={{ backgroundColor: BRAND.primary }}>Recommended</span> : null}</button>; })}</div>
-                )}
-              </div>
-            ))}
+            {groups.map((group) => <OptionGroup key={group.key} group={group} selectedValue={selected[group.key]} onChange={(value) => setSelected((prev) => ({ ...prev, [group.key]: value }))} />)}
 
             <div><div className="mb-3 flex items-center gap-2 text-[14px] font-semibold" style={{ color: BRAND.ink }}><span>Print run:</span><span style={{ color: BRAND.primary }}>{selectedQty}</span></div><div className="grid gap-3 sm:grid-cols-2">{quantities.map((row) => <button key={row.qty} onClick={() => setSelectedQty(row.qty)} className="relative rounded-[12px] border bg-white px-4 py-4 text-left shadow-[0_6px_16px_rgba(0,0,0,0.02)]" style={{ borderColor: String(selectedQty) === String(row.qty) ? BRAND.primary : BRAND.line, boxShadow: String(selectedQty) === String(row.qty) ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none' }}>{row.recommended ? <div className="absolute left-0 top-0 rounded-br-[10px] rounded-tl-[10px] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white" style={{ backgroundColor: BRAND.primary }}>Recommended</div> : null}<div className="flex items-center justify-between pt-2"><span className="text-[14px] font-semibold" style={{ color: BRAND.ink }}>{String(row.qty).toLocaleString()}</span><span className="text-[16px] font-black" style={{ color: BRAND.ink }}>{currency(row.price)}</span></div></button>)}</div><div className="mt-3 text-right text-[12px] font-semibold underline" style={{ color: BRAND.primary }}>Show all quantities</div></div>
 
             <div><div className="mb-3 text-[14px] font-semibold" style={{ color: BRAND.ink }}>Estimated delivery date</div><div className="space-y-3">{delivery.map((item, index) => <button key={`${item.day}-${index}`} onClick={() => setSelectedDelivery(index)} className="w-full rounded-[12px] border bg-white px-4 py-4 text-left shadow-[0_6px_16px_rgba(0,0,0,0.02)]" style={{ borderColor: selectedDelivery === index ? BRAND.primary : BRAND.line, boxShadow: selectedDelivery === index ? 'inset 0 0 0 1px rgb(24, 167, 208)' : 'none' }}><div className="flex items-start justify-between gap-4"><div><div className="text-[15px] font-bold" style={{ color: BRAND.ink }}>{item.day}</div><div className="mt-1 text-[12px]" style={{ color: BRAND.muted }}>{item.latest}</div></div>{item.addon ? <div className="text-[14px] font-bold" style={{ color: BRAND.ink }}>{item.addon}</div> : null}</div></button>)}</div></div>
 
             <div className="rounded-[20px] border bg-white p-5 shadow-[0_16px_34px_rgba(0,0,0,0.04)]" style={{ borderColor: BRAND.line }}>
-              <div className="flex items-center justify-between gap-4"><div><div className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: BRAND.primary }}>Selected price</div><div className="mt-2 text-[40px] font-black tracking-[-0.04em]" style={{ color: BRAND.ink }}>{currency(currentPrice)}</div><div className="mt-1 text-[11px]" style={{ color: BRAND.muted }}>Ex VAT visual placeholder pricing</div></div><div className="text-right text-[12px]" style={{ color: BRAND.muted }}><div>Standard delivery</div><div className="font-semibold" style={{ color: BRAND.ink }}>{delivery[selectedDelivery]?.day}</div></div></div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]"><button className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[12px] font-bold text-white shadow-[0_12px_26px_rgba(24,167,208,0.22)]" style={{ backgroundColor: BRAND.primary }}>Add to cart</button><button className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[12px] font-bold" style={{ borderColor: BRAND.line, color: BRAND.ink, backgroundColor: 'white' }}>Browse design templates</button></div>
+              <div className="flex items-center justify-between gap-4"><div><div className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: BRAND.primary }}>Selected price</div><div className="mt-2 text-[40px] font-black tracking-[-0.04em]" style={{ color: BRAND.ink }}>{currency(livePrice)}</div><div className="mt-1 text-[11px]" style={{ color: BRAND.muted }}>{priceStatus === 'live' ? 'Live backend price' : priceStatus === 'checking' ? 'Checking backend price…' : 'Local fallback price'}</div></div><div className="text-right text-[12px]" style={{ color: BRAND.muted }}><div>Standard delivery</div><div className="font-semibold" style={{ color: BRAND.ink }}>{delivery[selectedDelivery]?.day}</div></div></div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]"><button onClick={handleAddToCart} disabled={cartStatus === 'adding'} className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-[12px] font-bold text-white shadow-[0_12px_26px_rgba(24,167,208,0.22)] disabled:opacity-60" style={{ backgroundColor: BRAND.primary }}>{cartStatus === 'adding' ? 'Adding…' : cartStatus === 'added' ? 'Added to basket' : 'Add to cart'}</button><button className="inline-flex items-center justify-center rounded-full border px-5 py-2.5 text-[12px] font-bold" style={{ borderColor: BRAND.line, color: BRAND.ink, backgroundColor: 'white' }}>Browse design templates</button></div>
+              {cartStatus === 'error' ? <div className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-700">Could not add to basket. Please try again.</div> : null}
               <div className="mt-4 grid gap-2 text-[12px]" style={{ color: BRAND.muted }}><div className="mb-2 flex flex-wrap gap-2">{['Secure checkout later', 'Artwork support', 'Bespoke quote route'].map((item) => <span key={item} className="rounded-full border bg-[#F8FBFC] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ borderColor: BRAND.line, color: BRAND.primary }}>{item}</span>)}</div><div className="flex items-center gap-2"><Check className="h-4 w-4" style={{ color: BRAND.primary }} /> Artwork check included before print</div><div className="flex items-center gap-2"><Check className="h-4 w-4" style={{ color: BRAND.primary }} /> Custom sizes and specialist materials via bespoke quote</div><div className="flex items-center gap-2"><Check className="h-4 w-4" style={{ color: BRAND.primary }} /> Production advice available from support</div></div>
             </div>
           </div>
