@@ -127,17 +127,34 @@ function responseQuoteId(value) {
   return value.quoteRequest?.id || value.data?.quoteRequest?.id || value.data?.id || value.id || value.quoteId || '';
 }
 
-export async function createQuoteRequest(payload) {
-  const response = await request('/api/internal/storefront/quote/request', {
+export async function createInternalOrder(payload) {
+  const artworkUploadId = extractArtworkUploadId(payload?.artwork_reference || payload?.artwork || payload?.artworkUpload);
+  const body = {
+    ...payload,
+    artworkUploadIds: [...new Set([...(payload?.artworkUploadIds || []), artworkUploadId].filter(Boolean))],
+  };
+  const response = await request('/api/internal/orders', {
     method: 'POST',
-    body: payload,
+    body,
   });
-  const quoteId = responseQuoteId(response);
-  const uploadId = extractArtworkUploadId(payload?.artwork || payload?.artwork_reference || payload?.checkout?.artwork_reference);
-  if (uploadId && quoteId) {
-    await attachArtworkUploadToOrder(uploadId, { quoteId, note: 'Attached to quote request during hosted checkout.' }).catch(() => null);
-  }
+  await attachOrderResponseArtwork(response, body).catch(() => null);
   return response;
+}
+
+export async function createQuoteRequest(payload) {
+  try {
+    const response = await request('/api/internal/storefront/quote/request', {
+      method: 'POST',
+      body: payload,
+    });
+    const quoteId = responseQuoteId(response);
+    const uploadId = extractArtworkUploadId(payload?.artwork || payload?.artwork_reference || payload?.checkout?.artwork_reference);
+    if (uploadId && quoteId) await attachArtworkUploadToOrder(uploadId, { quoteId, note: 'Attached to quote request during hosted checkout.' }).catch(() => null);
+    return response;
+  } catch (error) {
+    const fallbackPayload = { ...(payload.checkout || payload), payment_method: 'Quote request', quoteRequired: true, artwork_reference: payload.artwork || payload.artwork_reference || payload.checkout?.artwork_reference };
+    return createInternalOrder(fallbackPayload);
+  }
 }
 
 export async function attachOrderResponseArtwork(response, payload) {
