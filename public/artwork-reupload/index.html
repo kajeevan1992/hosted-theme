@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload replacement artwork | HOLO PRINT</title>
+  <style>
+    :root { --brand:#18A7D0; --ink:#161A22; --muted:#667487; --line:#E3E8F0; --bg:#F7F8FC; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px; }
+    .brand { font-size: 34px; font-weight: 900; letter-spacing: -0.06em; margin-bottom: 22px; }
+    .brand span:first-child { color: var(--brand); }
+    .card { background:#fff; border:1px solid var(--line); border-radius:24px; padding:28px; box-shadow:0 18px 42px rgba(0,0,0,.04); }
+    .eyebrow { color:var(--brand); font-size:11px; text-transform:uppercase; letter-spacing:.18em; font-weight:800; }
+    h1 { font-size: 34px; line-height:1.05; margin:10px 0 10px; letter-spacing:-.045em; }
+    p { color:var(--muted); line-height:1.7; font-size:14px; }
+    .box { border:1px solid var(--line); background:#FAFBFE; border-radius:16px; padding:16px; margin:18px 0; }
+    .row { display:grid; grid-template-columns:150px 1fr; gap:12px; font-size:13px; padding:8px 0; border-bottom:1px solid #EEF1F4; }
+    .row:last-child { border-bottom:0; }
+    .label { color:var(--muted); font-weight:700; }
+    input[type=file] { width:100%; padding:14px; border:1px dashed var(--line); border-radius:16px; background:#fff; }
+    button { appearance:none; border:0; border-radius:999px; padding:13px 20px; font-weight:800; font-size:13px; color:#fff; background:var(--brand); cursor:pointer; box-shadow:0 12px 26px rgba(24,167,208,.22); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .status { margin-top:16px; border-radius:14px; padding:13px 15px; font-size:13px; line-height:1.55; }
+    .ok { background:#ECFDF5; color:#065F46; border:1px solid #A7F3D0; }
+    .bad { background:#FEF2F2; color:#991B1B; border:1px solid #FECACA; }
+    .info { background:#F0F9FF; color:#075985; border:1px solid #BAE6FD; }
+    .muted { color:var(--muted); font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand"><span>HOLO</span><span>PRINT</span></div>
+    <div class="card">
+      <div class="eyebrow">Artwork replacement</div>
+      <h1>Upload your corrected artwork</h1>
+      <p>We need a replacement print-ready file before production can continue. Please upload the corrected PDF using the secure link from your email.</p>
+      <div id="summary" class="box"><p class="muted">Checking your upload link…</p></div>
+      <div class="box">
+        <input id="file" type="file" accept="application/pdf,.pdf,.ai,.eps,.jpg,.jpeg,.png,.tif,.tiff" />
+        <p class="muted">Recommended: print-ready PDF, correct product size, fonts embedded and 3mm bleed where required.</p>
+        <button id="submit" disabled>Upload replacement artwork</button>
+        <div id="status" class="status info" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API_BASE = window.localStorage.getItem('holo:internal-api-base') || window.__HOLO_INTERNAL_API_BASE__ || '';
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || '';
+    const summary = document.getElementById('summary');
+    const file = document.getElementById('file');
+    const submit = document.getElementById('submit');
+    const statusBox = document.getElementById('status');
+    function api(path){ return `${API_BASE}${path}`; }
+    function show(type, text){ statusBox.className = `status ${type}`; statusBox.textContent = text; statusBox.style.display = 'block'; }
+    function render(upload){
+      summary.innerHTML = `
+        <div class="row"><div class="label">Artwork</div><div>${upload.originalName || upload.id}</div></div>
+        <div class="row"><div class="label">Reason</div><div>${upload.reviewNote || 'Replacement artwork requested.'}</div></div>
+        <div class="row"><div class="label">Current status</div><div>${(upload.reviewStatus || '').replaceAll('-', ' ')}</div></div>
+        <div class="row"><div class="label">Detected size</div><div>${upload.widthMm && upload.heightMm ? `${upload.widthMm} × ${upload.heightMm}mm` : 'Not detected'}</div></div>
+      `;
+    }
+    async function load(){
+      if(!token){ summary.innerHTML = '<p class="muted">Missing upload token. Please open the link from your email again.</p>'; return; }
+      try{
+        const res = await fetch(api(`/api/internal/storefront/artwork/reupload?token=${encodeURIComponent(token)}`));
+        const payload = await res.json();
+        if(!res.ok || payload.ok === false) throw new Error(payload.error || 'Invalid or expired link.');
+        render(payload.upload); submit.disabled = false;
+      }catch(err){ summary.innerHTML = `<p class="muted">${err.message || 'This upload link is invalid or expired.'}</p>`; }
+    }
+    submit.addEventListener('click', async () => {
+      if(!file.files[0]) { show('bad','Please choose your replacement artwork file first.'); return; }
+      submit.disabled = true; show('info','Uploading replacement artwork…');
+      try{
+        const form = new FormData(); form.append('file', file.files[0]);
+        const res = await fetch(api(`/api/internal/storefront/artwork/reupload?token=${encodeURIComponent(token)}`), { method:'POST', body: form });
+        const payload = await res.json();
+        if(!res.ok || payload.ok === false) throw new Error(payload.error || 'Upload failed.');
+        show('ok','Replacement artwork uploaded successfully. Our team will review it before production continues.');
+        render(payload.upload); file.value = '';
+      }catch(err){ show('bad', err.message || 'Upload failed. Please try again.'); submit.disabled = false; }
+    });
+    load();
+  </script>
+</body>
+</html>
