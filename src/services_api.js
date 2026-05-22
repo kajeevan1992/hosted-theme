@@ -1,4 +1,4 @@
-import { uploadArtworkFile } from './services/internalStorefront';
+import { attachOrderResponseArtwork, uploadArtworkFile } from './services/internalStorefront';
 
 // Hosted SaaS theme integration layer.
 // Golden rule: UI imports this file only. This file calls window.storefront when available.
@@ -32,14 +32,7 @@ function normaliseCart(payload) {
   return {
     ...data,
     items: Array.isArray(data.items) ? data.items : [],
-    totals: data.totals || {
-      currency: 'GBP',
-      itemCount: 0,
-      lineCount: 0,
-      netTotalMinor: 0,
-      vatTotalMinor: 0,
-      grossTotalMinor: 0,
-    },
+    totals: data.totals || { currency: 'GBP', itemCount: 0, lineCount: 0, netTotalMinor: 0, vatTotalMinor: 0, grossTotalMinor: 0 },
   };
 }
 
@@ -105,9 +98,7 @@ export const pricing = {
   },
 };
 
-export async function resolveProductPrice(data = {}) {
-  return pricing.resolve(data);
-}
+export async function resolveProductPrice(data = {}) { return pricing.resolve(data); }
 
 export const rules = {
   async evaluate(data = {}) {
@@ -116,40 +107,26 @@ export const rules = {
   },
 };
 
-export async function evaluateProductRules(data = {}) {
-  return rules.evaluate(data);
-}
+export async function evaluateProductRules(data = {}) { return rules.evaluate(data); }
 
 export const cart = {
-  async get() {
-    return normaliseCart(await call('cart.get', storefront().cart?.get, null));
-  },
-  async add(item = {}) {
-    return normaliseCart(await call('cart.add', () => storefront().cart?.add?.(item), null));
-  },
-  async update(item = {}) {
-    return normaliseCart(await call('cart.update', () => storefront().cart?.update?.(item), null));
-  },
-  async remove(id) {
-    return normaliseCart(await call('cart.remove', () => storefront().cart?.remove?.(id), null));
-  },
-  async clear() {
-    return normaliseCart(await call('cart.clear', storefront().cart?.clear, null));
-  },
+  async get() { return normaliseCart(await call('cart.get', storefront().cart?.get, null)); },
+  async add(item = {}) { return normaliseCart(await call('cart.add', () => storefront().cart?.add?.(item), null)); },
+  async update(item = {}) { return normaliseCart(await call('cart.update', () => storefront().cart?.update?.(item), null)); },
+  async remove(id) { return normaliseCart(await call('cart.remove', () => storefront().cart?.remove?.(id), null)); },
+  async clear() { return normaliseCart(await call('cart.clear', storefront().cart?.clear, null)); },
 };
 
 export const checkout = {
-  async precheck() {
-    return call('checkout.precheck', storefront().checkout?.precheck, null);
-  },
-  async createDraft(data = {}) {
-    return call('checkout.createDraft', () => storefront().checkout?.createDraft?.(data), null);
-  },
+  async precheck() { return call('checkout.precheck', storefront().checkout?.precheck, null); },
+  async createDraft(data = {}) { return call('checkout.createDraft', () => storefront().checkout?.createDraft?.(data), null); },
   async createOrder(data = {}) {
-    return call('checkout.createOrder', () => storefront().checkout?.createOrder?.(data), null);
+    const response = await call('checkout.createOrder', () => storefront().checkout?.createOrder?.(data), null);
+    return attachOrderResponseArtwork(response, data);
   },
   async finalise(data = {}) {
-    return call('checkout.finalise', () => storefront().checkout?.finalise?.(data), null);
+    const response = await call('checkout.finalise', () => storefront().checkout?.finalise?.(data), null);
+    return attachOrderResponseArtwork(response, data);
   },
 };
 
@@ -161,22 +138,14 @@ export const artwork = {
     if (payload.file instanceof File) return uploadArtworkFile(payload.file, payload);
     return null;
   },
-  async preflight(data = {}) {
-    return call('artwork.preflight', () => storefront().artwork?.preflight?.(data), null);
-  },
+  async preflight(data = {}) { return call('artwork.preflight', () => storefront().artwork?.preflight?.(data), null); },
 };
 
-export const payment = {
-  async update(data = {}) {
-    return call('payment.update', () => storefront().payment?.update?.(data), null);
-  },
-};
+export const payment = { async update(data = {}) { return call('payment.update', () => storefront().payment?.update?.(data), null); } };
 
 export const customer = {
   orders: {
-    async list(params = {}) {
-      return normaliseOrders(await call('customer.orders.list', () => storefront().customer?.orders?.list?.(params), []));
-    },
+    async list(params = {}) { return normaliseOrders(await call('customer.orders.list', () => storefront().customer?.orders?.list?.(params), [])); },
     async get(id) {
       const direct = await call('customer.orders.get', () => storefront().customer?.orders?.get?.(id), null);
       if (direct) return direct;
@@ -186,13 +155,8 @@ export const customer = {
   },
 };
 
-export const health = {
-  async get() {
-    return call('health.get', storefront().health?.get, null);
-  },
-};
+export const health = { async get() { return call('health.get', storefront().health?.get, null); } };
 
-// Backward-compatible named exports for existing theme UI.
 export const listProducts = (params) => products.list(params);
 export const getProducts = (params) => products.list(params);
 export const getProduct = (idOrSlug) => products.get(idOrSlug);
@@ -219,36 +183,4 @@ export const getOrders = (params) => customer.orders.list(params);
 export const listOrders = getOrders;
 export const getOrder = (id) => customer.orders.get(id);
 
-export default {
-  products,
-  pricing,
-  rules,
-  cart,
-  checkout,
-  artwork,
-  payment,
-  customer,
-  health,
-  listProducts,
-  getProducts,
-  getProduct,
-  searchProducts,
-  getLivePrice,
-  getCart,
-  addToCart,
-  updateCart,
-  removeFromCart,
-  clearCart,
-  createOrder,
-  createDraftOrder,
-  finaliseOrder,
-  uploadArtwork,
-  runPreflight,
-  updatePayment,
-  getHealth,
-  getOrders,
-  listOrders,
-  getOrder,
-  resolveProductPrice,
-  evaluateProductRules,
-};
+export default { products, pricing, rules, cart, checkout, artwork, payment, customer, health, listProducts, getProducts, getProduct, searchProducts, getLivePrice, getCart, addToCart, updateCart, removeFromCart, clearCart, createOrder, createDraftOrder, finaliseOrder, uploadArtwork, runPreflight, updatePayment, getHealth, getOrders, listOrders, getOrder, resolveProductPrice, evaluateProductRules };
