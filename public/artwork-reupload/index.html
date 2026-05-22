@@ -46,9 +46,9 @@
     </div>
   </div>
   <script>
-    const API_BASE = window.localStorage.getItem('holo:internal-api-base') || window.__HOLO_INTERNAL_API_BASE__ || '';
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token') || '';
+    const API_BASE = (params.get('adminBase') || window.localStorage.getItem('holo:internal-api-base') || window.__HOLO_INTERNAL_API_BASE__ || '').replace(/\/$/, '');
     const summary = document.getElementById('summary');
     const file = document.getElementById('file');
     const submit = document.getElementById('submit');
