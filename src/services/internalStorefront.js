@@ -24,6 +24,18 @@ async function request(path, { method = 'GET', body, params } = {}) {
   return payload;
 }
 
+async function requestFirst(paths, options) {
+  let lastError;
+  for (const path of paths) {
+    try {
+      return await request(path, options);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Internal storefront request failed');
+}
+
 export function resolveProductConfig(slug, selections = {}, extraParams = {}) {
   return request(`/api/internal/storefront/products/${encodeURIComponent(slug)}/resolved`, {
     method: 'POST',
@@ -46,7 +58,7 @@ export function resolveDeliveryOptions({ postcode, subtotalMinor } = {}) {
 }
 
 export function resolveArtworkPreflight({ productId, slug, files = [], selections = {}, artworkMode = 'upload' } = {}) {
-  return request('/api/internal/storefront/artwork/preflight', {
+  return requestFirst(['/api/internal/storefront/artwork/preflight', '/api/internal/catalog/artwork-preflight'], {
     method: 'POST',
     body: { productId, slug, files, selections, artworkMode },
   });
