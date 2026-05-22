@@ -49,6 +49,12 @@ async function uploadMultipart(path, formData) {
   return payload;
 }
 
+export function extractArtworkUploadId(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value.id || value.upload?.id || value.artworkUploadId || value.artwork?.id || value.data?.upload?.id || value.data?.id || '';
+}
+
 export function resolveProductConfig(slug, selections = {}, extraParams = {}) {
   return request(`/api/internal/storefront/products/${encodeURIComponent(slug)}/resolved`, {
     method: 'POST',
@@ -77,7 +83,7 @@ export function resolveArtworkPreflight({ productId, slug, files = [], selection
   });
 }
 
-export function uploadArtworkFile(file, { productId, slug, orderId, quoteId, mode, preflight } = {}) {
+export async function uploadArtworkFile(file, { productId, slug, orderId, quoteId, mode, preflight } = {}) {
   const formData = new FormData();
   formData.append('file', file);
   if (productId) formData.append('productId', productId);
@@ -86,14 +92,61 @@ export function uploadArtworkFile(file, { productId, slug, orderId, quoteId, mod
   if (quoteId) formData.append('quoteId', quoteId);
   if (mode) formData.append('mode', mode);
   if (preflight) formData.append('preflight', JSON.stringify(preflight));
-  return uploadMultipart('/api/internal/storefront/artwork/upload', formData);
+  const payload = await uploadMultipart('/api/internal/storefront/artwork/upload', formData);
+  const upload = payload.upload || payload.data?.upload || payload;
+  return { ...payload, success: true, id: upload.id, url: upload.fileUrl, downloadUrl: upload.downloadUrl, upload };
 }
 
-export function createQuoteRequest(payload) {
-  return request('/api/internal/storefront/quote/request', {
+export function updateArtworkUploadStatus(uploadId, { action = 'pending-review', note = '', orderId, quoteId, actor = 'hosted-theme' } = {}) {
+  if (!uploadId) return Promise.resolve(null);
+  return request(`/api/internal/storefront/artwork/uploads/${encodeURIComponent(uploadId)}/status`, {
+    method: 'PATCH',
+    body: { action, note, orderId, quoteId, actor },
+  });
+}
+
+export function attachArtworkUploadToOrder(uploadReference, { orderId, quoteId, note } = {}) {
+  const uploadId = extractArtworkUploadId(uploadReference);
+  if (!uploadId || (!orderId && !quoteId)) return Promise.resolve(null);
+  return updateArtworkUploadStatus(uploadId, {
+    action: 'pending-review',
+    orderId,
+    quoteId,
+    note: note || (orderId ? `Attached to order ${orderId}` : `Attached to quote ${quoteId}`),
+    actor: 'checkout-submit',
+  });
+}
+
+function responseOrderId(value) {
+  if (!value) return '';
+  return value.order?.id || value.data?.order?.id || value.data?.id || value.id || value.orderId || value.orderNumber || '';
+}
+
+function responseQuoteId(value) {
+  if (!value) return '';
+  return value.quoteRequest?.id || value.data?.quoteRequest?.id || value.data?.id || value.id || value.quoteId || '';
+}
+
+export async function createQuoteRequest(payload) {
+  const response = await request('/api/internal/storefront/quote/request', {
     method: 'POST',
     body: payload,
   });
+  const quoteId = responseQuoteId(response);
+  const uploadId = extractArtworkUploadId(payload?.artwork || payload?.artwork_reference || payload?.checkout?.artwork_reference);
+  if (uploadId && quoteId) {
+    await attachArtworkUploadToOrder(uploadId, { quoteId, note: 'Attached to quote request during hosted checkout.' }).catch(() => null);
+  }
+  return response;
+}
+
+export async function attachOrderResponseArtwork(response, payload) {
+  const orderId = responseOrderId(response);
+  const uploadId = extractArtworkUploadId(payload?.artwork_reference || payload?.artwork || payload?.artworkUpload);
+  if (uploadId && orderId) {
+    await attachArtworkUploadToOrder(uploadId, { orderId, note: 'Attached to final order during hosted checkout.' }).catch(() => null);
+  }
+  return response;
 }
 
 export function resolvedPriceToPounds(pricing) {
