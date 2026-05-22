@@ -1,4 +1,4 @@
-const DEFAULT_ADMIN_BASE_URL = import.meta.env.VITE_INTERNAL_STOREFRONT_BASE_URL || import.meta.env.VITE_ADMIN_BASE_URL || '';
+const DEFAULT_ADMIN_BASE_URL = import.meta.env.VITE_INTERNAL_STOREFRONT_BASE_URL || import.meta.env.VITE_ADMIN_BASE_URL || import.meta.env.VITE_INTERNAL_API_BASE || '';
 
 function buildUrl(path, params = {}) {
   const base = DEFAULT_ADMIN_BASE_URL.replace(/\/$/, '');
@@ -42,6 +42,13 @@ export function resolveDeliveryOptions({ postcode, subtotalMinor } = {}) {
   return request('/api/internal/storefront/delivery/options', {
     method: 'POST',
     body: { postcode, subtotalMinor },
+  });
+}
+
+export function resolveArtworkPreflight({ productId, slug, files = [], selections = {}, artworkMode = 'upload' } = {}) {
+  return request('/api/internal/storefront/artwork/preflight', {
+    method: 'POST',
+    body: { productId, slug, files, selections, artworkMode },
   });
 }
 
