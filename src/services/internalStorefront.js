@@ -36,6 +36,19 @@ async function requestFirst(paths, options) {
   throw lastError || new Error('Internal storefront request failed');
 }
 
+async function uploadMultipart(path, formData) {
+  const response = await fetch(buildUrl(path), {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.error || `Internal artwork upload failed: ${path}`);
+  }
+  return payload;
+}
+
 export function resolveProductConfig(slug, selections = {}, extraParams = {}) {
   return request(`/api/internal/storefront/products/${encodeURIComponent(slug)}/resolved`, {
     method: 'POST',
@@ -62,6 +75,18 @@ export function resolveArtworkPreflight({ productId, slug, files = [], selection
     method: 'POST',
     body: { productId, slug, files, selections, artworkMode },
   });
+}
+
+export function uploadArtworkFile(file, { productId, slug, orderId, quoteId, mode, preflight } = {}) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (productId) formData.append('productId', productId);
+  if (slug) formData.append('slug', slug);
+  if (orderId) formData.append('orderId', orderId);
+  if (quoteId) formData.append('quoteId', quoteId);
+  if (mode) formData.append('mode', mode);
+  if (preflight) formData.append('preflight', JSON.stringify(preflight));
+  return uploadMultipart('/api/internal/storefront/artwork/upload', formData);
 }
 
 export function createQuoteRequest(payload) {
