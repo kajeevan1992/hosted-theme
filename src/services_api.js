@@ -1,6 +1,8 @@
+import { uploadArtworkFile } from './services/internalStorefront';
+
 // Hosted SaaS theme integration layer.
-// Golden rule: UI imports this file only. This file calls window.storefront only.
-// No fetch(), no /api/v1, no direct backend URLs inside UI/components.
+// Golden rule: UI imports this file only. This file calls window.storefront when available.
+// Hosted fallback: artwork file uploads are sent to the internal storefront artwork upload route.
 
 function storefront() {
   return typeof window !== 'undefined' ? (window.storefront || {}) : {};
@@ -154,7 +156,10 @@ export const checkout = {
 export const artwork = {
   async upload(dataOrFile, meta = {}) {
     const payload = dataOrFile instanceof File ? { file: dataOrFile, ...meta } : { ...(dataOrFile || {}), ...meta };
-    return call('artwork.upload', () => storefront().artwork?.upload?.(payload), null);
+    const hostedUpload = storefront().artwork?.upload;
+    if (typeof hostedUpload === 'function') return hostedUpload(payload);
+    if (payload.file instanceof File) return uploadArtworkFile(payload.file, payload);
+    return null;
   },
   async preflight(data = {}) {
     return call('artwork.preflight', () => storefront().artwork?.preflight?.(data), null);
