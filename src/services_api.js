@@ -1,4 +1,4 @@
-import { attachOrderResponseArtwork, uploadArtworkFile } from './services/internalStorefront';
+import { attachOrderResponseArtwork, createInternalOrder, uploadArtworkFile } from './services/internalStorefront';
 
 // Hosted SaaS theme integration layer.
 // Golden rule: UI imports this file only. This file calls window.storefront when available.
@@ -121,12 +121,20 @@ export const checkout = {
   async precheck() { return call('checkout.precheck', storefront().checkout?.precheck, null); },
   async createDraft(data = {}) { return call('checkout.createDraft', () => storefront().checkout?.createDraft?.(data), null); },
   async createOrder(data = {}) {
-    const response = await call('checkout.createOrder', () => storefront().checkout?.createOrder?.(data), null);
-    return attachOrderResponseArtwork(response, data);
+    const hostedCreate = storefront().checkout?.createOrder;
+    if (typeof hostedCreate === 'function') {
+      const response = await hostedCreate(data);
+      return attachOrderResponseArtwork(response, data);
+    }
+    return createInternalOrder(data);
   },
   async finalise(data = {}) {
-    const response = await call('checkout.finalise', () => storefront().checkout?.finalise?.(data), null);
-    return attachOrderResponseArtwork(response, data);
+    const hostedFinalise = storefront().checkout?.finalise;
+    if (typeof hostedFinalise === 'function') {
+      const response = await hostedFinalise(data);
+      return attachOrderResponseArtwork(response, data);
+    }
+    return createInternalOrder(data);
   },
 };
 
