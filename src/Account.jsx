@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { getCustomerEmail, getOrders, setCustomerEmail } from "./services_api";
+import { confirmCardPayment, getCustomerEmail, getOrders, setCustomerEmail } from "./services_api";
 
 function currency(v){return new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}).format(v||0);}
 function nice(value){return String(value||'').replace(/_/g,' ').replace(/-/g,' ');}
 
-function State({title,text,children}){
-  return <div className="p-6 border rounded-[18px] text-[12px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.04)]" style={{borderColor:"#E3E8F0",color:"#667487"}}>
-    <b className="text-[18px]" style={{color:"#161A22"}}>{title}</b>
+function State({title,text,children,tone='default'}){
+  const styles={default:['#FFFFFF','#667487','#E3E8F0'],success:['#ECFDF5','#047857','#A7F3D0'],cancel:['#FFFBEB','#92400E','#FDE68A'],error:['#FEF2F2','#991B1B','#FECACA']};
+  const [bg,fg,border]=styles[tone]||styles.default;
+  return <div className="p-6 border rounded-[18px] text-[12px] shadow-[0_14px_34px_rgba(0,0,0,0.04)]" style={{borderColor:border,color:fg,background:bg}}>
+    <b className="text-[18px]" style={{color:tone==='default'?"#161A22":fg}}>{title}</b>
     <div className="mt-2 leading-6">{text}</div>
     {children}
   </div>
@@ -17,13 +19,14 @@ function Pill({children,tone='blue'}){
   const [bg,fg]=map[tone]||map.blue;
   return <span className="px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-[0.12em]" style={{borderColor:'#E3E8F0',background:bg,color:fg}}>{children}</span>
 }
-function toneFor(status){const s=String(status||'').toLowerCase();if(s.includes('approved')||s.includes('production')||s.includes('dispatched'))return 'green';if(s.includes('pending')||s.includes('awaiting')||s.includes('quality'))return 'amber';if(s.includes('reject')||s.includes('replacement')||s.includes('block'))return 'red';return 'blue';}
+function toneFor(status){const s=String(status||'').toLowerCase();if(s.includes('approved')||s.includes('production')||s.includes('dispatched')||s.includes('paid'))return 'green';if(s.includes('pending')||s.includes('awaiting')||s.includes('quality'))return 'amber';if(s.includes('reject')||s.includes('replacement')||s.includes('block')||s.includes('failed'))return 'red';return 'blue';}
 
 export default function Account({navigate,setSelectedOrder}){
   const [orders,setOrders]=useState([]);
   const [loading,setLoading]=useState(false);
   const [email,setEmail]=useState(()=>getCustomerEmail()||'');
   const [message,setMessage]=useState('');
+  const [paymentNotice,setPaymentNotice]=useState(null);
 
   async function load(nextEmail=email){
     const clean=String(nextEmail||'').trim();
@@ -33,7 +36,23 @@ export default function Account({navigate,setSelectedOrder}){
     try{const r=await getOrders({email:clean});setOrders(Array.isArray(r)?r:[]);}catch(error){setMessage(error instanceof Error?error.message:'Could not load orders.');setOrders([]);}finally{setLoading(false);}
   }
 
-  useEffect(()=>{ if(email) void load(email); else setLoading(false); },[]);
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const payment=params.get('payment');
+    const sessionId=params.get('session_id')||params.get('sessionId');
+    const orderId=params.get('orderId');
+    async function handleReturn(){
+      if(payment==='success'){
+        setPaymentNotice({tone:'success',title:'Payment received',text:'Your card payment is being confirmed. Your order status will update below.'});
+        if(sessionId){try{await confirmCardPayment(sessionId);setPaymentNotice({tone:'success',title:'Payment confirmed',text:'Thank you — your payment has been confirmed and your order is now moving into artwork/order processing.'});}catch(error){setPaymentNotice({tone:'error',title:'Payment confirmation issue',text:error instanceof Error?error.message:'Payment was received but could not be confirmed automatically.'});}}
+      }
+      if(payment==='cancel') setPaymentNotice({tone:'cancel',title:'Payment cancelled',text:'No payment was taken. Your order is still saved and you can contact us or try checkout again.'});
+      if(orderId && !email){ setMessage('Enter the same checkout email to view this order.'); }
+      if(email) await load(email);
+    }
+    void handleReturn();
+    if(!payment){ if(email) void load(email); else setLoading(false); }
+  },[]);
 
   return <section className="py-8">
     <div className="mx-auto max-w-[1100px] px-4">
@@ -45,6 +64,8 @@ export default function Account({navigate,setSelectedOrder}){
         </div>
         <button onClick={()=>navigate('/checkout')} className="px-4 py-2 bg-black text-white rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">Start order</button>
       </div>
+
+      {paymentNotice && <div className="mb-4"><State tone={paymentNotice.tone} title={paymentNotice.title} text={paymentNotice.text} /></div>}
 
       <div className="mb-4 grid gap-3 md:grid-cols-[1fr_auto] p-4 border rounded-[18px] bg-white" style={{borderColor:'#E3E8F0'}}>
         <input value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="Enter the email used at checkout" className="h-11 rounded-[14px] border px-4 text-[13px] outline-none" style={{borderColor:'#E3E8F0'}} />
@@ -63,7 +84,7 @@ export default function Account({navigate,setSelectedOrder}){
                 <b className="text-[16px]">Order #{o.orderNumber||o.id||i+1}</b>
                 <div className="mt-1 text-[12px] text-[#667487]">Created {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Pending sync'}</div>
               </div>
-              <Pill tone={toneFor(o.status)}>{nice(o.status||'Processing')}</Pill>
+              <div className="flex flex-wrap gap-2"><Pill tone={toneFor(o.paymentStatus)}>{nice(o.paymentStatus||'unpaid')}</Pill><Pill tone={toneFor(o.status)}>{nice(o.status||'Processing')}</Pill></div>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-[1fr_150px_150px_150px_170px]">
               <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Order summary</div><div className="mt-1 text-[#667487]">Total {currency(o.total)}</div><div className="mt-1 text-[#667487]">{(o.items||[]).length} item(s)</div></div>
