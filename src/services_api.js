@@ -1,4 +1,4 @@
-import { attachOrderResponseArtwork, createInternalOrder, createPaidOrder, uploadArtworkFile, listCustomerOrders, getCustomerOrder, setCustomerEmail, getCustomerEmail, getArtworkReuploadContext, submitReplacementArtwork } from './services/internalStorefront';
+import { attachOrderResponseArtwork, createInternalOrder, createPaidOrder, uploadArtworkFile, listCustomerOrders, getCustomerOrder, setCustomerEmail, getCustomerEmail, customerOrderDocumentUrl, openCustomerOrderDocument, getArtworkReuploadContext, submitReplacementArtwork } from './services/internalStorefront';
 
 function storefront() { return typeof window !== 'undefined' ? (window.storefront || {}) : {}; }
 function missingService(name) { return new Error(`Hosted storefront service is not available: window.storefront.${name}`); }
@@ -19,7 +19,7 @@ export const cart = { async get() { return normaliseCart(await call('cart.get', 
 export const checkout = { async precheck() { return call('checkout.precheck', storefront().checkout?.precheck, null); }, async createDraft(data = {}) { return call('checkout.createDraft', () => storefront().checkout?.createDraft?.(data), null); }, async createOrder(data = {}) { const hostedCreate = storefront().checkout?.createOrder; if (typeof hostedCreate === 'function') { const response = await hostedCreate(data); return attachOrderResponseArtwork(response, data); } return wantsCardPayment(data) ? createPaidOrder(data) : createInternalOrder(data); }, async finalise(data = {}) { const hostedFinalise = storefront().checkout?.finalise; if (typeof hostedFinalise === 'function') { const response = await hostedFinalise(data); return attachOrderResponseArtwork(response, data); } return wantsCardPayment(data) ? createPaidOrder(data) : createInternalOrder(data); } };
 export const artwork = { async upload(dataOrFile, meta = {}) { const payload = dataOrFile instanceof File ? { file: dataOrFile, ...meta } : { ...(dataOrFile || {}), ...meta }; const hostedUpload = storefront().artwork?.upload; if (typeof hostedUpload === 'function') return hostedUpload(payload); if (payload.file instanceof File) return uploadArtworkFile(payload.file, payload); return null; }, async preflight(data = {}) { return call('artwork.preflight', () => storefront().artwork?.preflight?.(data), null); }, async reuploadContext(token) { return getArtworkReuploadContext(token); }, async submitReplacement(token, file) { return submitReplacementArtwork(token, file); } };
 export const payment = { async update(data = {}) { return call('payment.update', () => storefront().payment?.update?.(data), null); } };
-export const customer = { orders: { async list(params = {}) { const hosted = storefront().customer?.orders?.list; if (typeof hosted === 'function') return normaliseOrders(await hosted(params)); return normaliseOrders(await listCustomerOrders(params)); }, async get(id, params = {}) { const hosted = storefront().customer?.orders?.get; if (typeof hosted === 'function') return hosted(id, params); return getCustomerOrder(id, params); } } };
+export const customer = { orders: { async list(params = {}) { const hosted = storefront().customer?.orders?.list; if (typeof hosted === 'function') return normaliseOrders(await hosted(params)); return normaliseOrders(await listCustomerOrders(params)); }, async get(id, params = {}) { const hosted = storefront().customer?.orders?.get; if (typeof hosted === 'function') return hosted(id, params); return getCustomerOrder(id, params); }, documentUrl: customerOrderDocumentUrl, openDocument: openCustomerOrderDocument } };
 export const health = { async get() { return call('health.get', storefront().health?.get, null); } };
 
 export const listProducts = (params) => products.list(params);
@@ -39,10 +39,12 @@ export const uploadArtwork = (dataOrFile, meta = {}) => artwork.upload(dataOrFil
 export const runPreflight = (data) => artwork.preflight(data);
 export const getReuploadContext = (token) => artwork.reuploadContext(token);
 export const submitReplacementArtwork = (token, file) => artwork.submitReplacement(token, file);
+export const getOrderDocumentUrl = (orderId, type, email) => customer.orders.documentUrl(orderId, type, email);
+export const openOrderDocument = (orderId, type, email) => customer.orders.openDocument(orderId, type, email);
 export const updatePayment = (data) => payment.update(data);
 export const getHealth = () => health.get();
 export const getOrders = (params) => customer.orders.list(params);
 export const listOrders = getOrders;
 export const getOrder = (id, params) => customer.orders.get(id, params);
 export { setCustomerEmail, getCustomerEmail };
-export default { products, pricing, rules, cart, checkout, artwork, payment, customer, health, listProducts, getProducts, getProduct, searchProducts, getLivePrice, getCart, addToCart, updateCart, removeFromCart, clearCart, createOrder, createDraftOrder, finaliseOrder, uploadArtwork, runPreflight, getReuploadContext, submitReplacementArtwork, updatePayment, getHealth, getOrders, listOrders, getOrder, resolveProductPrice, evaluateProductRules, setCustomerEmail, getCustomerEmail };
+export default { products, pricing, rules, cart, checkout, artwork, payment, customer, health, listProducts, getProducts, getProduct, searchProducts, getLivePrice, getCart, addToCart, updateCart, removeFromCart, clearCart, createOrder, createDraftOrder, finaliseOrder, uploadArtwork, runPreflight, getReuploadContext, submitReplacementArtwork, getOrderDocumentUrl, openOrderDocument, updatePayment, getHealth, getOrders, listOrders, getOrder, resolveProductPrice, evaluateProductRules, setCustomerEmail, getCustomerEmail };
