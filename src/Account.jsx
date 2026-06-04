@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { confirmCardPayment, getCustomerEmail, getOrders, setCustomerEmail } from "./services_api";
+import { confirmCardPayment, getCustomerEmail, getOrders, setCustomerEmail, startCardPayment } from "./services_api";
 import { buildOrderVatSummary, formatCurrency } from "./utils/orderVat";
 
 function currency(v){return formatCurrency(v);}
 function nice(value){return String(value||'').replace(/_/g,' ').replace(/-/g,' ');}
+function canRetryPayment(order){const status=String(order?.status||'').toUpperCase();const payment=String(order?.paymentStatus||order?.payment?.paymentStatus||'').toLowerCase();return ['AWAITING_PAYMENT','APPROVED','ARTWORK_CHECK'].includes(status)&&!['paid','refunded'].includes(payment);}
 
 function State({title,text,children,tone='default'}){
   const styles={default:['#FFFFFF','#667487','#E3E8F0'],success:['#ECFDF5','#047857','#A7F3D0'],cancel:['#FFFBEB','#92400E','#FDE68A'],error:['#FEF2F2','#991B1B','#FECACA']};
@@ -20,7 +21,7 @@ function Pill({children,tone='blue'}){
   const [bg,fg]=map[tone]||map.blue;
   return <span className="px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-[0.12em]" style={{borderColor:'#E3E8F0',background:bg,color:fg}}>{children}</span>
 }
-function toneFor(status){const s=String(status||'').toLowerCase();if(s.includes('approved')||s.includes('production')||s.includes('dispatched')||s.includes('paid'))return 'green';if(s.includes('pending')||s.includes('awaiting')||s.includes('quality'))return 'amber';if(s.includes('reject')||s.includes('replacement')||s.includes('block')||s.includes('failed'))return 'red';return 'blue';}
+function toneFor(status){const s=String(status||'').toLowerCase();if(s.includes('approved')||s.includes('production')||s.includes('dispatched')||s.includes('paid'))return 'green';if(s.includes('pending')||s.includes('awaiting')||s.includes('quality')||s.includes('cancel'))return 'amber';if(s.includes('reject')||s.includes('replacement')||s.includes('block')||s.includes('failed'))return 'red';return 'blue';}
 
 function OrderVatMiniSummary({order}){
   const tax=buildOrderVatSummary(order);
@@ -44,6 +45,7 @@ export default function Account({navigate,setSelectedOrder}){
   const [email,setEmail]=useState(()=>getCustomerEmail()||'');
   const [message,setMessage]=useState('');
   const [paymentNotice,setPaymentNotice]=useState(null);
+  const [payingOrderId,setPayingOrderId]=useState('');
 
   async function load(nextEmail=email){
     const clean=String(nextEmail||'').trim();
@@ -51,6 +53,10 @@ export default function Account({navigate,setSelectedOrder}){
     if(!clean){setOrders([]);setMessage('Enter your order email to view live order and artwork status.');return;}
     setLoading(true);setMessage('');
     try{const r=await getOrders({email:clean});setOrders(Array.isArray(r)?r:[]);}catch(error){setMessage(error instanceof Error?error.message:'Could not load orders.');setOrders([]);}finally{setLoading(false);}
+  }
+
+  async function retryPayment(order){
+    try{setPayingOrderId(order.id||order.orderNumber);setPaymentNotice({tone:'default',title:'Opening secure payment',text:'We are creating a new secure card payment session for this order.'});await startCardPayment(order,email||order.customerEmail||order.customer?.email);}catch(error){setPaymentNotice({tone:'error',title:'Could not start payment',text:error instanceof Error?error.message:'Payment link could not be created. Please contact us.'});setPayingOrderId('');}
   }
 
   useEffect(()=>{
@@ -63,7 +69,7 @@ export default function Account({navigate,setSelectedOrder}){
         setPaymentNotice({tone:'success',title:'Payment received',text:'Your card payment is being confirmed. Your order status will update below.'});
         if(sessionId){try{await confirmCardPayment(sessionId);setPaymentNotice({tone:'success',title:'Payment confirmed',text:'Thank you — your payment has been confirmed and your order is now moving into artwork/order processing.'});}catch(error){setPaymentNotice({tone:'error',title:'Payment confirmation issue',text:error instanceof Error?error.message:'Payment was received but could not be confirmed automatically.'});}}
       }
-      if(payment==='cancel') setPaymentNotice({tone:'cancel',title:'Payment cancelled',text:'No payment was taken. Your order is still saved and you can contact us or try checkout again.'});
+      if(payment==='cancel') setPaymentNotice({tone:'cancel',title:'Payment cancelled',text:'No payment was taken. Your order is still saved below. You can retry payment from the order card.'});
       if(orderId && !email){ setMessage('Enter the same checkout email to view this order.'); }
       if(email) await load(email);
     }
@@ -77,7 +83,7 @@ export default function Account({navigate,setSelectedOrder}){
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#7B3FE4]">Customer dashboard</div>
           <h1 className="text-[30px] font-black tracking-[-0.04em]">Your print orders</h1>
-          <p className="mt-1 text-[12px] text-[#667487]">Track order status, artwork approval, production, delivery and VAT totals from the hosted storefront.</p>
+          <p className="mt-1 text-[12px] text-[#667487]">Track order status, artwork approval, production, delivery, payment and VAT totals from the hosted storefront.</p>
         </div>
         <button onClick={()=>navigate('/checkout')} className="px-4 py-2 bg-black text-white rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">Start order</button>
       </div>
@@ -96,12 +102,13 @@ export default function Account({navigate,setSelectedOrder}){
       <div className="grid gap-4 mt-4">
         {orders.map((o,i)=>{
           const tax=buildOrderVatSummary(o);
+          const retry=canRetryPayment(o);
           return <div key={o.id||i} className="p-5 border rounded-[18px] bg-white shadow-[0_14px_34px_rgba(0,0,0,0.04)]" style={{borderColor:"#E3E8F0"}}>
             <div className="flex flex-wrap justify-between items-start gap-3">
               <div>
                 <b className="text-[16px]">Order #{o.orderNumber||o.id||i+1}</b>
                 <div className="mt-1 text-[12px] text-[#667487]">Created {o.created_at ? new Date(o.created_at).toLocaleDateString() : 'Pending sync'}</div>
-                <div className="mt-2 flex flex-wrap gap-2">{tax.isMixedVat?<Pill tone="purple">Mixed VAT order</Pill>:null}{tax.vat>0?<Pill tone="blue">VAT {currency(tax.vat)}</Pill>:<Pill tone="green">No VAT due</Pill>}</div>
+                <div className="mt-2 flex flex-wrap gap-2">{tax.isMixedVat?<Pill tone="purple">Mixed VAT order</Pill>:null}{tax.vat>0?<Pill tone="blue">VAT {currency(tax.vat)}</Pill>:<Pill tone="green">No VAT due</Pill>}{retry?<Pill tone="amber">Payment needed</Pill>:null}</div>
               </div>
               <div className="flex flex-wrap gap-2"><Pill tone={toneFor(o.paymentStatus)}>{nice(o.paymentStatus||'unpaid')}</Pill><Pill tone={toneFor(o.status)}>{nice(o.status||'Processing')}</Pill></div>
             </div>
@@ -109,10 +116,10 @@ export default function Account({navigate,setSelectedOrder}){
               <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Order summary</div><div className="mt-1 text-[#667487]">Total inc. VAT {currency(tax.gross || o.total)}</div><div className="mt-1 text-[#667487]">{(o.items||[]).length} item(s)</div></div>
               <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Artwork</div><div className="mt-1 text-[#667487]">{nice(o.artwork?.status||o.artwork_status||'Awaiting artwork')}</div></div>
               <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Production</div><div className="mt-1 text-[#667487]">{nice(o.production?.status||'Not started')}</div></div>
-              <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Delivery</div><div className="mt-1 text-[#667487]">{nice(o.deliveryStatus?.status||o.delivery||'Standard')}</div></div>
+              <div className="rounded-[14px] border bg-[#FBFCFF] px-4 py-3 text-[12px]" style={{borderColor:'#E3E8F0'}}><div className="font-bold text-[#161A22]">Payment</div><div className="mt-1 text-[#667487]">{nice(o.paymentStatus||o.payment?.paymentStatus||'unpaid')}</div></div>
               <OrderVatMiniSummary order={o} />
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 justify-end"><button onClick={()=>{setSelectedOrder(o);navigate('/account/order')}} className="px-3 py-2 bg-black text-white rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">View order</button><button onClick={()=>navigate('/artwork-upload')} className="px-3 py-2 border rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">Upload artwork</button></div>
+            <div className="mt-4 flex flex-wrap gap-2 justify-end">{retry?<button disabled={payingOrderId===(o.id||o.orderNumber)} onClick={()=>void retryPayment(o)} className="px-3 py-2 bg-[#18A7D0] text-white rounded-full text-[11px] font-bold uppercase tracking-[0.08em] disabled:opacity-60">{payingOrderId===(o.id||o.orderNumber)?'Opening payment':'Pay now'}</button>:null}<button onClick={()=>{setSelectedOrder(o);navigate('/account/order')}} className="px-3 py-2 bg-black text-white rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">View order</button><button onClick={()=>navigate('/artwork-upload')} className="px-3 py-2 border rounded-full text-[11px] font-bold uppercase tracking-[0.08em]">Upload artwork</button></div>
           </div>
         })}
       </div>
