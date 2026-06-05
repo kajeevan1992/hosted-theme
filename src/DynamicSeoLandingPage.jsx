@@ -22,6 +22,11 @@ function splitIntro(copy) {
   return String(copy || '').split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
 }
 
+function metadataNote(meta) {
+  const metadata = meta?.metadata || {};
+  return metadata.locationTruthRule || metadata.collectionNote || '';
+}
+
 export default function DynamicSeoLandingPage({ pathname, navigate, fallback = null }) {
   const [state, setState] = useState({ loading: true, meta: null, error: '' });
 
@@ -42,6 +47,7 @@ export default function DynamicSeoLandingPage({ pathname, navigate, fallback = n
   const faqs = Array.isArray(meta.faqItems) ? meta.faqItems : [];
   const links = Array.isArray(meta.internalLinks) ? meta.internalLinks : [];
   const pageType = String(meta.pageType || 'seo page').replace(/-/g, ' ');
+  const note = metadataNote(meta);
 
   return (
     <main style={{ backgroundColor: BRAND.bg, color: BRAND.ink, minHeight: '100vh' }}>
@@ -79,6 +85,7 @@ export default function DynamicSeoLandingPage({ pathname, navigate, fallback = n
             </div>
             {meta.locationName ? <p style={{ marginTop: 16, color: BRAND.muted, fontSize: 12, lineHeight: 1.7 }}>Location focus: <strong style={{ color: BRAND.ink }}>{meta.locationName}</strong></p> : null}
             {meta.productName ? <p style={{ marginTop: 6, color: BRAND.muted, fontSize: 12, lineHeight: 1.7 }}>Product focus: <strong style={{ color: BRAND.ink }}>{meta.productName}</strong></p> : null}
+            {note ? <p style={{ marginTop: 14, borderTop: `1px solid ${BRAND.line}`, paddingTop: 12, color: BRAND.muted, fontSize: 12, lineHeight: 1.7 }}>{note}</p> : null}
           </aside>
         </div>
       </section>
