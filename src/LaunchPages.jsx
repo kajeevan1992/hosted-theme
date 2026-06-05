@@ -70,6 +70,36 @@ function ensureLink(rel) {
   return tag;
 }
 
+function applySchemaJsonLd(schemaJsonLd) {
+  const id = 'holo-print-seo-jsonld';
+  const existing = document.getElementById(id);
+  if (!schemaJsonLd) {
+    if (existing) existing.remove();
+    return;
+  }
+  const script = existing || document.createElement('script');
+  script.id = id;
+  script.type = 'application/ld+json';
+  script.textContent = JSON.stringify(schemaJsonLd);
+  if (!existing) document.head.appendChild(script);
+}
+
+function fallbackSchema(pathname, title, description, canonical) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${canonical}#webpage`,
+    url: canonical,
+    name: title,
+    description,
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Holo Print',
+      url: 'https://holoprint.co.uk',
+    },
+  };
+}
+
 function applySeoMeta(meta, pathname) {
   const fallback = pageMeta[pathname] || {
     title: 'Holo Print | Design, Print, Sign and Web in Sidcup',
@@ -86,6 +116,7 @@ function applySeoMeta(meta, pathname) {
   ensureMeta('og:description', 'property').setAttribute('content', description);
   ensureMeta('og:url', 'property').setAttribute('content', canonical);
   ensureLink('canonical').setAttribute('href', canonical);
+  applySchemaJsonLd(meta?.schemaJsonLd || fallbackSchema(pathname, title, description, canonical));
   return { title, description, canonical, robots };
 }
 
