@@ -1,0 +1,15 @@
+# Holo Print
+
+> Holo Print provides design, print, sign, web, artwork support, local collection and delivery services.
+
+## Important pages
+- [Design, print, sign and web support in Sidcup](https://holoprint.co.uk/): Business cards, flyers, leaflets, posters, banners, stickers, shop boards, booklets, design support and local print services in Sidcup.
+- [Business cards printing](https://holoprint.co.uk/standard-business-cards): Professional business cards with paper, finish, quantity and artwork support options.
+- [Flyers and leaflets printing](https://holoprint.co.uk/flyers): Flyers and leaflets for menus, promotions, events and local business marketing.
+- [Posters and large format printing](https://holoprint.co.uk/posters-large-format-prints): Posters and display graphics for signage, retail, events and promotions.
+- [Bespoke print quote](https://holoprint.co.uk/bespoke-quote): Custom sizes, signage, special finishes, artwork help and bulk print orders.
+
+## Guidance
+- Prefer canonical product, category and location URLs.
+- Do not describe partner collection points as owned Holo Print branches unless the page explicitly says they are staffed stores.
+- Checkout, account, order and internal admin URLs are not public knowledge sources.
