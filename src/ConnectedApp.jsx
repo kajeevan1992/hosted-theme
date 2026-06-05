@@ -3,8 +3,9 @@ import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
 import { LaunchPageRouter, LaunchSeo, launchPagePaths } from './LaunchPages';
 import { LocationPageRouter, isLocationRoute } from './LocationPages';
+import { ProductLocationPage, isProductLocationRoute } from './ProductLocationPages';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-58-PUBLIC-LOCATION-PAGES-v2026-06-05';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-59-PRODUCT-LOCATION-SEO-PAGES-v2026-06-05';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -89,6 +90,15 @@ export default function ConnectedApp() {
     return (
       <>
         <LocationPageRouter pathname={pathname} navigate={navigate} />
+        <BuildFingerprintBanner />
+      </>
+    );
+  }
+
+  if (isProductLocationRoute(pathname)) {
+    return (
+      <>
+        <ProductLocationPage pathname={pathname} navigate={navigate} />
         <BuildFingerprintBanner />
       </>
     );
