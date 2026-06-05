@@ -4,8 +4,9 @@ import ProductLiveConfigurator from './ProductLiveConfigurator';
 import { LaunchPageRouter, LaunchSeo, launchPagePaths } from './LaunchPages';
 import { LocationPageRouter, isLocationRoute } from './LocationPages';
 import { ProductLocationPage, isProductLocationRoute } from './ProductLocationPages';
+import CollectionPassPage from './CollectionPassPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-59-PRODUCT-LOCATION-SEO-PAGES-v2026-06-05';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-61-COLLECTION-PASS-v2026-06-05';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -86,48 +87,25 @@ export default function ConnectedApp() {
     };
   }, []);
 
+  if (pathname === '/collection-pass') {
+    return <><CollectionPassPage navigate={navigate} /><BuildFingerprintBanner /></>;
+  }
+
   if (isLocationRoute(pathname)) {
-    return (
-      <>
-        <LocationPageRouter pathname={pathname} navigate={navigate} />
-        <BuildFingerprintBanner />
-      </>
-    );
+    return <><LocationPageRouter pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
   }
 
   if (isProductLocationRoute(pathname)) {
-    return (
-      <>
-        <ProductLocationPage pathname={pathname} navigate={navigate} />
-        <BuildFingerprintBanner />
-      </>
-    );
+    return <><ProductLocationPage pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
   }
 
   if (launchPagePaths.includes(pathname)) {
-    return (
-      <>
-        <LaunchPageRouter pathname={pathname} navigate={navigate} />
-        <BuildFingerprintBanner />
-      </>
-    );
+    return <><LaunchPageRouter pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
   }
 
   if (looksLikeProductRoute(pathname)) {
-    return (
-      <>
-        <LaunchSeo pathname={pathname} />
-        <ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} />
-        <BuildFingerprintBanner />
-      </>
-    );
+    return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} /><BuildFingerprintBanner /></>;
   }
 
-  return (
-    <>
-      <LaunchSeo pathname={pathname} />
-      <AppLive />
-      <BuildFingerprintBanner />
-    </>
-  );
+  return <><LaunchSeo pathname={pathname} /><AppLive /><BuildFingerprintBanner /></>;
 }
