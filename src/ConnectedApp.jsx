@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
+import { LaunchPageRouter, LaunchSeo, launchPagePaths } from './LaunchPages';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-7-RESOLVED-CONFIG-v2026-05-16';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-52-HOLO-LAUNCH-PAGES-v2026-06-05';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -30,11 +31,19 @@ function looksLikeProductRoute(pathname) {
 }
 
 function BuildFingerprintBanner() {
+  if (import.meta.env.PROD) return null;
   return (
     <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 999999, background: '#111827', color: '#fff', fontSize: 11, padding: '8px 10px', borderRadius: 10, boxShadow: '0 8px 30px rgba(0,0,0,.2)', opacity: 0.88 }}>
       {BUILD_FINGERPRINT}
     </div>
   );
+}
+
+function navigate(path) {
+  if (typeof window === 'undefined') return;
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new Event('locationchange'));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export default function ConnectedApp() {
@@ -75,9 +84,19 @@ export default function ConnectedApp() {
     };
   }, []);
 
+  if (launchPagePaths.includes(pathname)) {
+    return (
+      <>
+        <LaunchPageRouter pathname={pathname} navigate={navigate} />
+        <BuildFingerprintBanner />
+      </>
+    );
+  }
+
   if (looksLikeProductRoute(pathname)) {
     return (
       <>
+        <LaunchSeo pathname={pathname} />
         <ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} />
         <BuildFingerprintBanner />
       </>
@@ -86,6 +105,7 @@ export default function ConnectedApp() {
 
   return (
     <>
+      <LaunchSeo pathname={pathname} />
       <AppLive />
       <BuildFingerprintBanner />
     </>
