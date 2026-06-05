@@ -20,6 +20,8 @@ const CONTACT = {
   hours: 'Monday to Saturday, 9:00–17:30',
 };
 
+const DEFAULT_ADMIN_BASE_URL = import.meta.env.VITE_INTERNAL_STOREFRONT_BASE_URL || import.meta.env.VITE_ADMIN_BASE_URL || import.meta.env.VITE_INTERNAL_API_BASE || import.meta.env.VITE_API_URL || '';
+
 const pageMeta = {
   '/contact': {
     title: 'Contact Holo Print | Printing in Sidcup',
@@ -39,27 +41,74 @@ const pageMeta = {
   },
 };
 
+function buildUrl(path, params = {}) {
+  const base = DEFAULT_ADMIN_BASE_URL.replace(/\/$/, '');
+  const url = new URL(`${base}${path}`, window.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, String(value));
+  });
+  return url.toString();
+}
+
+function ensureMeta(name, attr = 'name') {
+  let tag = document.querySelector(`meta[${attr}="${name}"]`);
+  if (!tag) {
+    tag = document.createElement('meta');
+    tag.setAttribute(attr, name);
+    document.head.appendChild(tag);
+  }
+  return tag;
+}
+
+function ensureLink(rel) {
+  let tag = document.querySelector(`link[rel="${rel}"]`);
+  if (!tag) {
+    tag = document.createElement('link');
+    tag.setAttribute('rel', rel);
+    document.head.appendChild(tag);
+  }
+  return tag;
+}
+
+function applySeoMeta(meta, pathname) {
+  const fallback = pageMeta[pathname] || {
+    title: 'Holo Print | Design, Print, Sign and Web in Sidcup',
+    description: 'Holo Print offers business cards, flyers, leaflets, banners, stickers, booklets, design support and local print services in Sidcup.',
+  };
+  const title = meta?.title || fallback.title;
+  const description = meta?.metaDescription || meta?.description || fallback.description;
+  const canonical = meta?.canonicalUrl || `https://holoprint.co.uk${pathname === '/' ? '' : pathname}`;
+  const robots = meta?.robots || `${meta?.noIndex ? 'noindex' : 'index'},${meta?.noFollow ? 'nofollow' : 'follow'}`;
+  document.title = title;
+  ensureMeta('description').setAttribute('content', description);
+  ensureMeta('robots').setAttribute('content', robots);
+  ensureMeta('og:title', 'property').setAttribute('content', title);
+  ensureMeta('og:description', 'property').setAttribute('content', description);
+  ensureMeta('og:url', 'property').setAttribute('content', canonical);
+  ensureLink('canonical').setAttribute('href', canonical);
+  return { title, description, canonical, robots };
+}
+
+async function resolveSaasSeo(pathname) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const response = await fetch(buildUrl('/api/internal/seo/resolve', { path: pathname }), { credentials: 'include' });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.ok === false) return null;
+    return payload?.data || null;
+  } catch {
+    return null;
+  }
+}
+
 export function LaunchSeo({ pathname }) {
   useEffect(() => {
-    const meta = pageMeta[pathname] || {
-      title: 'Holo Print | Design, Print, Sign and Web in Sidcup',
-      description: 'Holo Print offers business cards, flyers, leaflets, banners, signage, stickers, booklets, design support and local print services in Sidcup.',
-    };
-    document.title = meta.title;
-    let description = document.querySelector('meta[name="description"]');
-    if (!description) {
-      description = document.createElement('meta');
-      description.setAttribute('name', 'description');
-      document.head.appendChild(description);
-    }
-    description.setAttribute('content', meta.description);
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', `https://holoprint.co.uk${pathname === '/' ? '' : pathname}`);
+    let cancelled = false;
+    applySeoMeta(null, pathname);
+    resolveSaasSeo(pathname).then((meta) => {
+      if (!cancelled && meta) applySeoMeta(meta, pathname);
+    });
+    return () => { cancelled = true; };
   }, [pathname]);
   return null;
 }
