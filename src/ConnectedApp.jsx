@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
 import { LaunchPageRouter, LaunchSeo, launchPagePaths } from './LaunchPages';
+import { LocationPageRouter, isLocationRoute } from './LocationPages';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-52-HOLO-LAUNCH-PAGES-v2026-06-05';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-58-PUBLIC-LOCATION-PAGES-v2026-06-05';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -83,6 +84,15 @@ export default function ConnectedApp() {
       window.history.replaceState = originalReplaceState;
     };
   }, []);
+
+  if (isLocationRoute(pathname)) {
+    return (
+      <>
+        <LocationPageRouter pathname={pathname} navigate={navigate} />
+        <BuildFingerprintBanner />
+      </>
+    );
+  }
 
   if (launchPagePaths.includes(pathname)) {
     return (
