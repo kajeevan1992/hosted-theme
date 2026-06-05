@@ -149,16 +149,31 @@ function envBaseUrl() {
   return import.meta.env.VITE_SEO_API_BASE || import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_INTERNAL_API_BASE_URL || '';
 }
 
+function apiBases() {
+  const adapterBase = window.storefront?._config?.baseUrl || window.__STORE_FRONT_INTERNAL_BASE_URL__ || window.__SAAS_INTERNAL_BASE_URL__ || '';
+  return [envBaseUrl(), adapterBase, ''].filter((value, index, arr) => arr.indexOf(value) === index).map((value) => String(value || '').replace(/\/$/, ''));
+}
+
 function apiCandidates(path) {
   const explicit = import.meta.env.VITE_SEO_RESOLVE_URL;
-  const adapterBase = window.storefront?._config?.baseUrl || window.__STORE_FRONT_INTERNAL_BASE_URL__ || window.__SAAS_INTERNAL_BASE_URL__ || '';
-  const bases = [envBaseUrl(), adapterBase, ''].filter((value, index, arr) => arr.indexOf(value) === index).map((value) => String(value || '').replace(/\/$/, ''));
   const encoded = encodeURIComponent(path);
   return [
     explicit ? `${explicit}${explicit.includes('?') ? '&' : '?'}path=${encoded}` : null,
-    ...bases.flatMap((base) => [
+    ...apiBases().flatMap((base) => [
       `${base}/api/internal/seo/resolve?path=${encoded}`,
       `${base}/seo/resolve?path=${encoded}`,
+    ]),
+  ].filter(Boolean);
+}
+
+function redirectCandidates(path) {
+  const explicit = import.meta.env.VITE_SEO_REDIRECT_URL;
+  const encoded = encodeURIComponent(path);
+  return [
+    explicit ? `${explicit}${explicit.includes('?') ? '&' : '?'}path=${encoded}` : null,
+    ...apiBases().flatMap((base) => [
+      `${base}/api/internal/seo/redirect?path=${encoded}`,
+      `${base}/seo/redirect?path=${encoded}`,
     ]),
   ].filter(Boolean);
 }
@@ -175,6 +190,41 @@ async function resolveSeo(path) {
   return fallbackFor(path);
 }
 
+async function resolveRedirect(path) {
+  for (const url of redirectCandidates(path)) {
+    try {
+      const response = await fetch(url, { cache: 'no-store', credentials: 'include' });
+      const payload = await response.json().catch(() => null);
+      const data = payload?.data || null;
+      if (response.ok && data?.fromPath) return data;
+    } catch {}
+  }
+  return null;
+}
+
+function applyRedirect(redirect, path) {
+  if (!redirect || !redirect.isActive) return false;
+  if (Number(redirect.statusCode) === 410) {
+    const meta = fallbackFor(path);
+    applySeo({ ...meta, title: 'Page removed | Holo Print', metaDescription: 'This page has been removed or replaced. Browse Holo Print products or request a quote for help.', h1: 'Page removed', robots: 'noindex,nofollow', found: true, status: 'gone' });
+    return true;
+  }
+  const target = cleanPath(redirect.toPath || '/');
+  if (target && target !== cleanPath(path)) {
+    window.location.replace(target);
+    return true;
+  }
+  return false;
+}
+
+export async function getStorefrontSeo(path) {
+  return resolveSeo(cleanPath(path));
+}
+
+export async function getStorefrontRedirect(path) {
+  return resolveRedirect(cleanPath(path));
+}
+
 export function initStorefrontSeo() {
   let lastPath = '';
   let requestId = 0;
@@ -183,6 +233,9 @@ export function initStorefrontSeo() {
     if (path === lastPath) return;
     lastPath = path;
     const id = ++requestId;
+    const redirect = await resolveRedirect(path);
+    if (id !== requestId) return;
+    if (applyRedirect(redirect, path)) return;
     applySeo(fallbackFor(path));
     const remote = await resolveSeo(path);
     if (id === requestId) applySeo(remote);
