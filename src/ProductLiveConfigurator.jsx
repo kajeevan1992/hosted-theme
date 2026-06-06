@@ -9,7 +9,7 @@ export default function ProductLiveConfigurator({ pathname }) {
   return (
     <div className="min-h-screen bg-[#F7F8FC]">
       <StorefrontChrome currentPath={pathname}>
-        <div className="mx-auto max-w-[1280px] px-5 py-6">
+        <div className="mx-auto w-full max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">
           {loading ? (
             <div className="rounded-[32px] border border-[#E3E8F0] bg-white p-10 text-center shadow-sm">
               <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#18A7D0]">
