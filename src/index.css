@@ -1,10 +1,10 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: light;
+  --holo-storefront-shell: 1360px;
 }
 
 html {
@@ -120,7 +120,7 @@ section + section::before {
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  width: min(1280px, calc(100% - 3rem));
+  width: min(var(--holo-storefront-shell), calc(100% - 3rem));
   height: 1px;
   background: rgba(226,230,232,0.45);
   pointer-events: none;
@@ -258,156 +258,19 @@ footer {
   background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFB 100%);
 }
 
-
-/* next build 10 */
-body {
-  background:
-    radial-gradient(circle at top left, rgba(24,167,208,0.045), transparent 17%),
-    radial-gradient(circle at 85% 7%, rgba(255,255,255,0.82), transparent 14%),
-    linear-gradient(180deg, #F1F4F6 0%, #ECF0F2 100%);
-}
-
-section + section {
-  margin-top: 2px;
-}
-
-@media (min-width: 1280px) {
-  header nav button {
-    padding-top: 2px;
-    padding-bottom: 2px;
-  }
-}
-
-
-/* product page realism upgrade */
-details summary::-webkit-details-marker {
-  display: none;
-}
-
-details[open] summary {
-  background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFC 100%);
-}
-
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[1\.02fr_1fr\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* product page next build */
-details summary {
-  user-select: none;
-}
-
-details {
-  overflow: hidden;
+/* Global storefront shell alignment
+   Keep every main page aligned to the same left/right edges as the header logo/cart area. */
+.max-w-\[1220px\],
+.max-w-\[1280px\],
+.max-w-\[1360px\] {
+  max-width: var(--holo-storefront-shell) !important;
 }
 
 @media (min-width: 1024px) {
-  .lg\:grid-cols-\[1\.02fr_1fr\] {
-    gap: 2.25rem !important;
-  }
-}
-
-button[style*="inset 0 0 0 1px rgb(24, 167, 208)"] {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbfc 100%);
-}
-
-
-/* checkout/account UX build */
-input, textarea, select {
-  background: white;
-}
-
-input[type="file"] {
-  display: block;
-  width: 100%;
-  font-size: 12px;
-}
-
-details summary {
-  user-select: none;
-}
-
-
-/* checkout next build */
-input, textarea, select {
-  background: white;
-}
-
-input[type="file"] {
-  display: block;
-  width: 100%;
-  font-size: 12px;
-}
-
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[1fr_360px\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* checkout/account next-next build */
-input[type="file"] {
-  background: transparent;
-}
-
-
-/* storefront stability and standalone pass */
-input[type="file"] {
-  background: transparent;
-}
-
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[1fr_360px\],
-  .lg\:grid-cols-\[1fr_340px\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* customer flow next build */
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[0\.9fr_1\.1fr\],
-  .lg\:grid-cols-\[1fr_340px\],
-  .lg\:grid-cols-\[1fr_360px\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* customer flow build 4 */
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[0\.88fr_1\.12fr\],
-  .lg\:grid-cols-\[1fr_300px\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* customer flow build 5 */
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[1fr_280px\],
-  .lg\:grid-cols-\[1fr_300px\] {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-/* controlled refinement build */
-body {
-  background: radial-gradient(circle at 8% 0%, rgba(24,167,208,0.05), transparent 16%), radial-gradient(circle at 92% 6%, rgba(123,63,228,0.05), transparent 14%), linear-gradient(180deg, #F7F8FC 0%, #F3F5FA 100%);
-}
-header{background:rgba(255,255,255,0.94);backdrop-filter: blur(10px);}
-button:hover{filter:saturate(1.03);}
-
-
-/* fix pass */
-@media (max-width: 1024px) {
-  .lg\:grid-cols-\[270px_1fr\],
-  .lg\:grid-cols-\[1fr_280px\],
-  .lg\:grid-cols-\[1fr_300px\] {
-    grid-template-columns: 1fr !important;
+  .max-w-\[1220px\].lg\:px-8,
+  .max-w-\[1280px\].lg\:px-8,
+  .max-w-\[1360px\].lg\:px-8 {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
   }
 }
