@@ -88,6 +88,10 @@ export default function ConnectedApp() {
     };
   }, []);
 
+  if (pathname === '/') {
+    return <><LaunchSeo pathname={pathname} /><AppLive /><BuildFingerprintBanner /></>;
+  }
+
   if (pathname === '/collection-pass') {
     return <><CollectionPassPage navigate={navigate} /><BuildFingerprintBanner /></>;
   }
