@@ -258,8 +258,10 @@ footer {
   background: linear-gradient(180deg, #FFFFFF 0%, #F7FAFB 100%);
 }
 
-/* Global storefront shell alignment
-   Keep every main page aligned to the same left/right edges as the header logo/cart area. */
+/* forced storefront shell alignment */
+.mx-auto.w-full.max-w-\[1220px\],
+.mx-auto.w-full.max-w-\[1280px\],
+.mx-auto.w-full.max-w-\[1360px\],
 .max-w-\[1220px\],
 .max-w-\[1280px\],
 .max-w-\[1360px\] {
@@ -267,9 +269,9 @@ footer {
 }
 
 @media (min-width: 1024px) {
-  .max-w-\[1220px\].lg\:px-8,
-  .max-w-\[1280px\].lg\:px-8,
-  .max-w-\[1360px\].lg\:px-8 {
+  .mx-auto.w-full.max-w-\[1220px\],
+  .mx-auto.w-full.max-w-\[1280px\],
+  .mx-auto.w-full.max-w-\[1360px\] {
     padding-left: 2rem !important;
     padding-right: 2rem !important;
   }
