@@ -98,6 +98,19 @@ function fallbackFor(path) {
   return { ...meta, ...socialFor(meta), schemaJsonLd: schemaFor(meta) };
 }
 
+function embeddedSeoForPath(path) {
+  if (typeof document === 'undefined') return null;
+  const element = document.getElementById('holo-seo-ssr-data');
+  if (!element?.textContent) return null;
+  try {
+    const meta = JSON.parse(element.textContent);
+    if (cleanPath(meta.path || '/') !== cleanPath(path)) return null;
+    return { ...meta, ...socialFor(meta), schemaJsonLd: meta.schemaJsonLd || schemaFor(meta), fromStaticHtml: true };
+  } catch {
+    return null;
+  }
+}
+
 function setMetaByName(name, content) {
   if (!content) return;
   let element = document.head.querySelector(`meta[name="${name}"]`);
@@ -179,6 +192,8 @@ function redirectCandidates(path) {
 }
 
 async function resolveSeo(path) {
+  const embedded = embeddedSeoForPath(path);
+  if (embedded?.title) return embedded;
   for (const url of apiCandidates(path)) {
     try {
       const response = await fetch(url, { cache: 'no-store', credentials: 'include' });
@@ -233,10 +248,12 @@ export function initStorefrontSeo() {
     if (path === lastPath) return;
     lastPath = path;
     const id = ++requestId;
+    const embedded = embeddedSeoForPath(path);
+    if (embedded?.title) applySeo(embedded);
     const redirect = await resolveRedirect(path);
     if (id !== requestId) return;
     if (applyRedirect(redirect, path)) return;
-    applySeo(fallbackFor(path));
+    if (!embedded?.title) applySeo(fallbackFor(path));
     const remote = await resolveSeo(path);
     if (id === requestId) applySeo(remote);
   };
