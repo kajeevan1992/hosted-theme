@@ -1,0 +1,36 @@
+/* Final storefront alignment override
+   Loaded after index.css so it wins over Tailwind utilities and earlier theme CSS.
+   Goal: every main storefront shell starts/ends with the same header logo/cart shell.
+*/
+:root {
+  --holo-storefront-shell: 1360px;
+}
+
+/* AppLive Shell: mx-auto w-full px-4 sm:px-6 lg:px-8 max-w-[1220px|1360px] */
+#root .mx-auto.w-full.px-4.sm\:px-6.lg\:px-8.max-w-\[1220px\],
+#root .mx-auto.w-full.px-4.sm\:px-6.lg\:px-8.max-w-\[1280px\],
+#root .mx-auto.w-full.px-4.sm\:px-6.lg\:px-8.max-w-\[1360px\] {
+  max-width: var(--holo-storefront-shell) !important;
+}
+
+/* Product API template shell */
+#root section > .mx-auto.w-full.max-w-\[1220px\].px-4,
+#root section > .mx-auto.w-full.max-w-\[1280px\].px-4,
+#root section > .mx-auto.w-full.max-w-\[1360px\].px-4 {
+  max-width: var(--holo-storefront-shell) !important;
+}
+
+/* Any remaining main shell using old sizes */
+#root .max-w-\[1220px\],
+#root .max-w-\[1280px\],
+#root .max-w-\[1360px\] {
+  max-width: var(--holo-storefront-shell) !important;
+}
+
+@media (min-width: 1024px) {
+  #root .mx-auto.w-full.px-4.sm\:px-6.lg\:px-8,
+  #root section > .mx-auto.w-full.px-4.sm\:px-6.lg\:px-8 {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}
