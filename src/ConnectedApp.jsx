@@ -7,7 +7,7 @@ import { ProductLocationPage, isProductLocationRoute } from './ProductLocationPa
 import CollectionPassPage from './CollectionPassPage';
 import DynamicSeoLandingPage from './DynamicSeoLandingPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-62-SEO-REDIRECTS-LANDING-v2026-06-05';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-50-SEO-PAGE-RENDERER-v2026-06-08';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -48,6 +48,10 @@ function navigate(path) {
   window.history.pushState({}, '', path);
   window.dispatchEvent(new Event('locationchange'));
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function DynamicSeoWithFallback({ pathname, fallback }) {
+  return <><LaunchSeo pathname={pathname} /><DynamicSeoLandingPage pathname={pathname} navigate={navigate} fallback={fallback} /><BuildFingerprintBanner /></>;
 }
 
 export default function ConnectedApp() {
@@ -96,21 +100,21 @@ export default function ConnectedApp() {
     return <><CollectionPassPage navigate={navigate} /><BuildFingerprintBanner /></>;
   }
 
-  if (isLocationRoute(pathname)) {
-    return <><LocationPageRouter pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
+  if (isProductLocationRoute(pathname)) {
+    return <DynamicSeoWithFallback pathname={pathname} fallback={<ProductLocationPage pathname={pathname} navigate={navigate} />} />;
   }
 
-  if (isProductLocationRoute(pathname)) {
-    return <><ProductLocationPage pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
+  if (isLocationRoute(pathname)) {
+    return <DynamicSeoWithFallback pathname={pathname} fallback={<LocationPageRouter pathname={pathname} navigate={navigate} />} />;
   }
 
   if (launchPagePaths.includes(pathname)) {
-    return <><LaunchPageRouter pathname={pathname} navigate={navigate} /><BuildFingerprintBanner /></>;
+    return <DynamicSeoWithFallback pathname={pathname} fallback={<LaunchPageRouter pathname={pathname} navigate={navigate} />} />;
   }
 
   if (looksLikeProductRoute(pathname)) {
     return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} /><BuildFingerprintBanner /></>;
   }
 
-  return <><LaunchSeo pathname={pathname} /><DynamicSeoLandingPage pathname={pathname} navigate={navigate} fallback={<AppLive />} /><BuildFingerprintBanner /></>;
+  return <DynamicSeoWithFallback pathname={pathname} fallback={<AppLive />} />;
 }
