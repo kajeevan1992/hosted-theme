@@ -7,8 +7,9 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '27f169a'
+const DEPLOY_CHECK_COMMIT = '7646c64'
 const STOREFRONT_SHELL_WIDTH = '1360px'
+const STOREFRONT_SHELL_EXACT = 'min(calc(100vw - 64px), 1360px)'
 
 function applyStorefrontAlignment() {
   if (typeof document === 'undefined') return 0
@@ -34,10 +35,12 @@ function applyStorefrontAlignment() {
     const className = String(el.className || '')
     const looksLikeShell = className.includes('mx-auto') || className.includes('max-w-[')
     if (!looksLikeShell) return
-    el.style.maxWidth = STOREFRONT_SHELL_WIDTH
-    el.style.width = '100%'
-    el.style.marginLeft = 'auto'
-    el.style.marginRight = 'auto'
+    el.style.setProperty('max-width', 'none', 'important')
+    el.style.setProperty('width', STOREFRONT_SHELL_EXACT, 'important')
+    el.style.setProperty('margin-left', 'auto', 'important')
+    el.style.setProperty('margin-right', 'auto', 'important')
+    el.style.setProperty('padding-left', '32px', 'important')
+    el.style.setProperty('padding-right', '32px', 'important')
     el.dataset.holoAlignedShell = STOREFRONT_SHELL_WIDTH
     count += 1
   })
@@ -53,7 +56,7 @@ function StorefrontAlignmentRuntime() {
     const timers = [50, 250, 750, 1500, 3000].map((ms) => window.setTimeout(run, ms))
     const observer = new MutationObserver(run)
     const root = document.getElementById('root')
-    if (root) observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
+    if (root) observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] })
     window.addEventListener('resize', run)
     window.addEventListener('locationchange', run)
     window.addEventListener('popstate', run)
@@ -89,7 +92,7 @@ function DeployCheckBanner({ alignedCount = 0 }) {
         pointerEvents: 'none',
       }}
     >
-      frontend {DEPLOY_CHECK_COMMIT} · shell {STOREFRONT_SHELL_WIDTH} · aligned {alignedCount}
+      frontend {DEPLOY_CHECK_COMMIT} · exact shell · aligned {alignedCount}
     </div>
   )
 }
