@@ -7,51 +7,62 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '7646c64'
-const STOREFRONT_SHELL_WIDTH = '1360px'
-const STOREFRONT_SHELL_EXACT = 'min(calc(100vw - 64px), 1360px)'
+const DEPLOY_CHECK_COMMIT = '3bc5712'
+
+function findHeaderRails() {
+  const header = document.querySelector('#root header')
+  if (!header) return null
+  const buttons = Array.from(header.querySelectorAll('button'))
+  const logo = buttons.find((button) => String(button.textContent || '').replace(/\s+/g, '').includes('HOLOPRINT'))
+  const cart = buttons.find((button) => String(button.textContent || '').includes('£')) || buttons[buttons.length - 1]
+  if (!logo || !cart) return null
+  const logoRect = logo.getBoundingClientRect()
+  const cartRect = cart.getBoundingClientRect()
+  const left = Math.max(16, Math.round(logoRect.left))
+  const right = Math.min(window.innerWidth - 16, Math.round(cartRect.right))
+  const width = Math.max(320, right - left)
+  return { left, right, width }
+}
 
 function applyStorefrontAlignment() {
-  if (typeof document === 'undefined') return 0
+  if (typeof document === 'undefined') return { count: 0, width: 0 }
   const root = document.getElementById('root')
-  if (!root) return 0
+  if (!root) return { count: 0, width: 0 }
+  const rails = findHeaderRails()
+  if (!rails) return { count: 0, width: 0 }
 
   const selectors = [
-    '[class*="max-w-[1220px]"]',
-    '[class*="max-w-[1280px]"]',
-    'header [class*="max-w-[1360px]"]',
-    'section [class*="max-w-[1360px]"]',
-    'footer [class*="max-w-[1360px]"]',
-    'main [class*="max-w-[1360px]"]',
-    'header div.mx-auto.w-full',
-    'section div.mx-auto.w-full',
+    'section > div.mx-auto.w-full',
+    'footer > div.mx-auto.w-full',
     'footer div.mx-auto.w-full',
-    'main div.mx-auto.w-full',
+    'main > div.mx-auto.w-full',
   ]
 
   let count = 0
   root.querySelectorAll(selectors.join(',')).forEach((node) => {
     const el = node
-    const className = String(el.className || '')
-    const looksLikeShell = className.includes('mx-auto') || className.includes('max-w-[')
-    if (!looksLikeShell) return
+    const insideHeader = Boolean(el.closest('header'))
+    if (insideHeader) return
+    el.style.setProperty('box-sizing', 'border-box', 'important')
     el.style.setProperty('max-width', 'none', 'important')
-    el.style.setProperty('width', STOREFRONT_SHELL_EXACT, 'important')
-    el.style.setProperty('margin-left', 'auto', 'important')
-    el.style.setProperty('margin-right', 'auto', 'important')
-    el.style.setProperty('padding-left', '32px', 'important')
-    el.style.setProperty('padding-right', '32px', 'important')
-    el.dataset.holoAlignedShell = STOREFRONT_SHELL_WIDTH
+    el.style.setProperty('width', `${rails.width}px`, 'important')
+    el.style.setProperty('margin-left', `${rails.left}px`, 'important')
+    el.style.setProperty('margin-right', '0', 'important')
+    el.style.setProperty('padding-left', '0', 'important')
+    el.style.setProperty('padding-right', '0', 'important')
+    el.dataset.holoAlignedLeft = String(rails.left)
+    el.dataset.holoAlignedRight = String(rails.right)
     count += 1
   })
   window.__holoAlignedShellCount = count
-  return count
+  window.__holoAlignedRails = rails
+  return { count, width: rails.width }
 }
 
 function StorefrontAlignmentRuntime() {
-  const [count, setCount] = useState(0)
+  const [state, setState] = useState({ count: 0, width: 0 })
   useEffect(() => {
-    const run = () => setCount(applyStorefrontAlignment())
+    const run = () => setState(applyStorefrontAlignment())
     run()
     const timers = [50, 250, 750, 1500, 3000].map((ms) => window.setTimeout(run, ms))
     const observer = new MutationObserver(run)
@@ -68,10 +79,10 @@ function StorefrontAlignmentRuntime() {
       window.removeEventListener('popstate', run)
     }
   }, [])
-  return <DeployCheckBanner alignedCount={count} />
+  return <DeployCheckBanner alignedCount={state.count} railWidth={state.width} />
 }
 
-function DeployCheckBanner({ alignedCount = 0 }) {
+function DeployCheckBanner({ alignedCount = 0, railWidth = 0 }) {
   return (
     <div
       style={{
@@ -92,7 +103,7 @@ function DeployCheckBanner({ alignedCount = 0 }) {
         pointerEvents: 'none',
       }}
     >
-      frontend {DEPLOY_CHECK_COMMIT} · exact shell · aligned {alignedCount}
+      frontend {DEPLOY_CHECK_COMMIT} · header rails {railWidth}px · aligned {alignedCount}
     </div>
   )
 }
