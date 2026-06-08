@@ -3,11 +3,17 @@ import ReactDOM from 'react-dom/client'
 import App from './ConnectedApp'
 import './index.css'
 import './storefront-alignment.css'
+import './mobile-responsive.css'
 import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = 'dc7604f'
+const DEPLOY_CHECK_COMMIT = '5bf16d5'
+const DESKTOP_RAIL_MIN_WIDTH = 1024
+
+function isDesktopRails() {
+  return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_RAIL_MIN_WIDTH
+}
 
 function findHeaderRails() {
   const header = document.querySelector('#root header')
@@ -20,8 +26,25 @@ function findHeaderRails() {
   const cartRect = cart.getBoundingClientRect()
   const left = Math.max(16, Math.round(logoRect.left))
   const right = Math.min(window.innerWidth - 16, Math.round(cartRect.right))
-  const width = Math.max(320, right - left)
+  const width = Math.max(900, right - left)
   return { left, right, width }
+}
+
+function clearDesktopRailStyles(root) {
+  const selectors = [
+    'section > div.mx-auto.w-full',
+    'footer > div.mx-auto.w-full',
+    'footer div.mx-auto.w-full',
+    'main > div.mx-auto.w-full',
+    'header .absolute.left-0.right-0.top-full.hidden.xl\\:block',
+  ]
+  root.querySelectorAll(selectors.join(',')).forEach((node) => {
+    const el = node
+    ;['box-sizing', 'max-width', 'width', 'margin-left', 'margin-right', 'padding-left', 'padding-right', 'left', 'right'].forEach((prop) => el.style.removeProperty(prop))
+    delete el.dataset.holoAlignedLeft
+    delete el.dataset.holoAlignedRight
+    delete el.dataset.holoAlignedMenu
+  })
 }
 
 function alignMegaMenus(root, rails) {
@@ -45,6 +68,15 @@ function applyStorefrontAlignment() {
   if (typeof document === 'undefined') return { count: 0, width: 0, menuCount: 0 }
   const root = document.getElementById('root')
   if (!root) return { count: 0, width: 0, menuCount: 0 }
+
+  if (!isDesktopRails()) {
+    clearDesktopRailStyles(root)
+    window.__holoAlignedShellCount = 0
+    window.__holoAlignedRails = null
+    window.__holoAlignedMenuCount = 0
+    return { count: 0, width: 0, menuCount: 0 }
+  }
+
   const rails = findHeaderRails()
   if (!rails) return { count: 0, width: 0, menuCount: 0 }
 
@@ -102,6 +134,8 @@ function StorefrontAlignmentRuntime() {
 }
 
 function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
+  if (typeof window !== 'undefined' && window.innerWidth < DESKTOP_RAIL_MIN_WIDTH) return null
+  if (typeof window !== 'undefined' && !window.location.search.includes('deployCheck=1')) return null
   return (
     <div
       style={{
