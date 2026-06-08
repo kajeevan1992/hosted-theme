@@ -16,6 +16,8 @@ const BRAND = {
 
 function isPublicSeoPage(meta) {
   if (!meta || !meta.title) return false;
+  const confirmed = meta.found === true || meta.staticRendered === true || meta.fromStaticHtml === true;
+  if (!confirmed) return false;
   const status = String(meta.status || 'published');
   if (!['published', 'fallback'].includes(status) && !meta.staticRendered && !meta.fromStaticHtml) return false;
   if (meta.noIndex || String(meta.robots || '').toLowerCase().includes('noindex')) return false;
