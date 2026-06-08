@@ -53,6 +53,34 @@ const FALLBACK_PAGES = [
   },
 ];
 
+// These are app routes that must hard-refresh correctly on static hosts.
+// SEO pages above get rich metadata; these routes get a safe SPA index fallback when no SEO export writes them.
+const SPA_REFRESH_ROUTES = [
+  '/',
+  '/same-day-printing',
+  '/standard-business-cards',
+  '/business-cards',
+  '/flyers',
+  '/posters-large-format-prints',
+  '/posters',
+  '/booklets',
+  '/labels',
+  '/stationery',
+  '/signage',
+  '/packaging',
+  '/all-products',
+  '/bespoke-quote',
+  '/quote',
+  '/cart',
+  '/checkout',
+  '/account',
+  '/login',
+  '/auth',
+  '/artwork-upload',
+  '/collection-pass',
+  '/contact',
+];
+
 function cleanPath(value = '/') {
   const clean = String(value || '/').split('?')[0].split('#')[0] || '/';
   return clean.startsWith('/') ? clean : `/${clean}`;
@@ -156,6 +184,25 @@ async function writeRoute(baseHtml, page) {
   return routeIndex;
 }
 
+async function writeSpaRefreshRoute(baseHtml, route) {
+  const clean = cleanPath(route);
+  if (clean === '/') return null;
+  const routeDir = path.join(distDir, clean.replace(/^\//, ''));
+  const routeIndex = path.join(routeDir, 'index.html');
+  try {
+    await fs.access(routeIndex);
+    return null;
+  } catch {}
+  await fs.mkdir(routeDir, { recursive: true });
+  await fs.writeFile(routeIndex, baseHtml, 'utf8');
+  return routeIndex;
+}
+
+async function writeStaticHostFallbacks(baseHtml) {
+  await fs.writeFile(path.join(distDir, '404.html'), baseHtml, 'utf8');
+  await fs.writeFile(path.join(distDir, '_redirects'), '/* /index.html 200\n', 'utf8');
+}
+
 async function main() {
   const baseHtml = await fs.readFile(indexPath, 'utf8');
   let pages = [];
@@ -168,7 +215,7 @@ async function main() {
   const unique = new Map();
   for (const page of pages) {
     const clean = cleanPath(page.path);
-    if (!clean || clean.startsWith('/checkout') || clean.startsWith('/account') || clean.startsWith('/api')) continue;
+    if (!clean || clean.startsWith('/api')) continue;
     unique.set(clean, { ...page, path: clean });
   }
   let count = 0;
@@ -176,7 +223,14 @@ async function main() {
     await writeRoute(baseHtml, page);
     count += 1;
   }
-  console.log(`[seo-prerender] Wrote ${count} static SEO HTML route(s).`);
+
+  let spaCount = 0;
+  for (const route of SPA_REFRESH_ROUTES) {
+    const written = await writeSpaRefreshRoute(baseHtml, route);
+    if (written) spaCount += 1;
+  }
+  await writeStaticHostFallbacks(baseHtml);
+  console.log(`[seo-prerender] Wrote ${count} static SEO HTML route(s) and ${spaCount} SPA refresh fallback route(s).`);
 }
 
 main().catch((error) => {
