@@ -1,0 +1,250 @@
+/* Mobile responsive polish for hosted storefront
+   Keeps desktop layout intact while giving phones an app-like, single-column experience.
+*/
+
+@media (max-width: 1023px) {
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+    background: linear-gradient(180deg, #f7f9fc 0%, #eef3f7 100%) !important;
+  }
+
+  #root * {
+    min-width: 0;
+  }
+
+  #root header {
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  #root header > div.mx-auto.w-full,
+  #root section > div.mx-auto.w-full,
+  #root footer > div.mx-auto.w-full,
+  #root main > div.mx-auto.w-full {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  #root header > div.mx-auto.w-full {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  #root header .grid.grid-cols-\[auto_1fr_auto\] {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    min-height: 76px !important;
+    height: auto !important;
+    padding: 10px 0 !important;
+  }
+
+  #root header button.flex.items-center.gap-0\.5 span {
+    font-size: clamp(30px, 9vw, 42px) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.06em !important;
+  }
+
+  #root header .ml-auto {
+    gap: 8px !important;
+  }
+
+  #root header .ml-auto button:last-child {
+    display: none !important;
+  }
+
+  #root header .grid.h-9.w-9,
+  #root header .h-9.w-9 {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 16px !important;
+  }
+
+  #root header .text-\[42px\] {
+    font-size: clamp(30px, 9vw, 42px) !important;
+  }
+
+  #root header .fixed.inset-0.z-50 > div {
+    width: min(86vw, 360px) !important;
+    border-radius: 0 28px 28px 0 !important;
+    box-shadow: 18px 0 50px rgba(15, 16, 18, 0.18) !important;
+  }
+
+  #root section {
+    overflow-x: hidden !important;
+  }
+
+  #root section.relative.overflow-hidden.border-b {
+    border-radius: 0 0 28px 28px !important;
+  }
+
+  #root section .min-h-\[500px\] {
+    min-height: auto !important;
+    padding-top: 24px !important;
+    padding-bottom: 22px !important;
+    gap: 22px !important;
+  }
+
+  #root section h1,
+  #root main h1 {
+    max-width: 100% !important;
+    font-size: clamp(36px, 11vw, 54px) !important;
+    line-height: 0.96 !important;
+    letter-spacing: -0.065em !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #root section h2,
+  #root main h2 {
+    font-size: clamp(24px, 7vw, 34px) !important;
+    line-height: 1.04 !important;
+  }
+
+  #root section p,
+  #root main p {
+    max-width: 100% !important;
+  }
+
+  #root .justify-self-center,
+  #root .lg\:justify-self-end {
+    justify-self: stretch !important;
+  }
+
+  #root section img.h-\[365px\].w-\[580px\],
+  #root section img.w-\[580px\] {
+    width: 100% !important;
+    height: min(58vw, 260px) !important;
+    max-width: 100% !important;
+    object-fit: cover !important;
+  }
+
+  #root .rounded-\[28px\],
+  #root .rounded-\[22px\],
+  #root .rounded-\[20px\],
+  #root .rounded-\[18px\] {
+    border-radius: 22px !important;
+  }
+
+  #root .grid {
+    max-width: 100% !important;
+  }
+
+  #root .md\:grid-cols-2,
+  #root .md\:grid-cols-3,
+  #root .md\:grid-cols-4,
+  #root .lg\:grid-cols-2,
+  #root .lg\:grid-cols-3,
+  #root .xl\:grid-cols-4,
+  #root .xl\:grid-cols-5,
+  #root .xl\:grid-cols-6,
+  #root .xl\:grid-cols-7 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #root .grid-cols-4,
+  #root .grid-cols-3,
+  #root .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #root .flex.overflow-x-auto {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px !important;
+  }
+
+  #root .flex.overflow-x-auto > * {
+    scroll-snap-align: start;
+  }
+
+  #root button,
+  #root a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root footer {
+    padding-bottom: 28px !important;
+  }
+
+  #root footer .grid,
+  #root footer .flex {
+    gap: 20px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  #root header button.flex.items-center.gap-0\.5 span {
+    font-size: clamp(28px, 9vw, 38px) !important;
+  }
+
+  #root header .grid.h-9.w-9,
+  #root header .h-9.w-9 {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  #root section h1,
+  #root main h1 {
+    font-size: clamp(34px, 10.5vw, 48px) !important;
+  }
+
+  #root section .mt-6.rounded-\[22px\].border.bg-white.p-5 {
+    padding: 14px !important;
+  }
+
+  #root section .mt-6.rounded-\[22px\].border.bg-white.p-5 img {
+    height: 150px !important;
+  }
+
+  #root .rounded-\[16px\].border.bg-white.p-3 img,
+  #root .rounded-\[18px\].border.bg-white.p-4 img,
+  #root .rounded-\[20px\].border.bg-white.p-4 img {
+    max-height: 190px !important;
+    object-fit: cover !important;
+  }
+
+  #root .text-\[66px\],
+  #root .sm\:text-\[78px\] {
+    font-size: clamp(34px, 10.5vw, 48px) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  #root header > div.mx-auto.w-full,
+  #root section > div.mx-auto.w-full,
+  #root footer > div.mx-auto.w-full,
+  #root main > div.mx-auto.w-full {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  #root header button.flex.items-center.gap-0\.5 span {
+    font-size: 32px !important;
+  }
+
+  #root header .ml-auto {
+    gap: 6px !important;
+  }
+
+  #root header .grid.h-9.w-9,
+  #root header .h-9.w-9 {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  #root section h1,
+  #root main h1 {
+    font-size: 40px !important;
+  }
+}
