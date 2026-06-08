@@ -7,7 +7,7 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '3bc5712'
+const DEPLOY_CHECK_COMMIT = 'dc7604f'
 
 function findHeaderRails() {
   const header = document.querySelector('#root header')
@@ -24,12 +24,29 @@ function findHeaderRails() {
   return { left, right, width }
 }
 
+function alignMegaMenus(root, rails) {
+  let count = 0
+  root.querySelectorAll('header .absolute.left-0.right-0.top-full.hidden.xl\\:block').forEach((node) => {
+    const el = node
+    const parentRect = (el.offsetParent || document.body).getBoundingClientRect()
+    const left = Math.round(rails.left - parentRect.left)
+    el.style.setProperty('left', `${left}px`, 'important')
+    el.style.setProperty('right', 'auto', 'important')
+    el.style.setProperty('width', `${rails.width}px`, 'important')
+    el.style.setProperty('max-width', 'none', 'important')
+    el.dataset.holoAlignedMenu = String(rails.width)
+    count += 1
+  })
+  window.__holoAlignedMenuCount = count
+  return count
+}
+
 function applyStorefrontAlignment() {
-  if (typeof document === 'undefined') return { count: 0, width: 0 }
+  if (typeof document === 'undefined') return { count: 0, width: 0, menuCount: 0 }
   const root = document.getElementById('root')
-  if (!root) return { count: 0, width: 0 }
+  if (!root) return { count: 0, width: 0, menuCount: 0 }
   const rails = findHeaderRails()
-  if (!rails) return { count: 0, width: 0 }
+  if (!rails) return { count: 0, width: 0, menuCount: 0 }
 
   const selectors = [
     'section > div.mx-auto.w-full',
@@ -54,13 +71,15 @@ function applyStorefrontAlignment() {
     el.dataset.holoAlignedRight = String(rails.right)
     count += 1
   })
+
+  const menuCount = alignMegaMenus(root, rails)
   window.__holoAlignedShellCount = count
   window.__holoAlignedRails = rails
-  return { count, width: rails.width }
+  return { count, width: rails.width, menuCount }
 }
 
 function StorefrontAlignmentRuntime() {
-  const [state, setState] = useState({ count: 0, width: 0 })
+  const [state, setState] = useState({ count: 0, width: 0, menuCount: 0 })
   useEffect(() => {
     const run = () => setState(applyStorefrontAlignment())
     run()
@@ -79,10 +98,10 @@ function StorefrontAlignmentRuntime() {
       window.removeEventListener('popstate', run)
     }
   }, [])
-  return <DeployCheckBanner alignedCount={state.count} railWidth={state.width} />
+  return <DeployCheckBanner alignedCount={state.count} railWidth={state.width} menuCount={state.menuCount} />
 }
 
-function DeployCheckBanner({ alignedCount = 0, railWidth = 0 }) {
+function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
   return (
     <div
       style={{
@@ -103,7 +122,7 @@ function DeployCheckBanner({ alignedCount = 0, railWidth = 0 }) {
         pointerEvents: 'none',
       }}
     >
-      frontend {DEPLOY_CHECK_COMMIT} · header rails {railWidth}px · aligned {alignedCount}
+      frontend {DEPLOY_CHECK_COMMIT} · rails {railWidth}px · body {alignedCount} · menu {menuCount}
     </div>
   )
 }
