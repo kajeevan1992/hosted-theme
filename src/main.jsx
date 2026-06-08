@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './ConnectedApp'
 import './index.css'
@@ -7,7 +7,50 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '6e1b8d9'
+const DEPLOY_CHECK_COMMIT = '3161652'
+const STOREFRONT_SHELL_WIDTH = '1360px'
+
+function applyStorefrontAlignment() {
+  if (typeof document === 'undefined') return
+  const root = document.getElementById('root')
+  if (!root) return
+
+  const selectors = [
+    'header div.mx-auto.w-full',
+    'section div.mx-auto.w-full',
+    'footer div.mx-auto.w-full',
+    'main div.mx-auto.w-full',
+  ]
+
+  root.querySelectorAll(selectors.join(',')).forEach((node) => {
+    const el = node
+    el.style.maxWidth = STOREFRONT_SHELL_WIDTH
+    el.style.width = '100%'
+    el.style.marginLeft = 'auto'
+    el.style.marginRight = 'auto'
+  })
+}
+
+function StorefrontAlignmentRuntime() {
+  useEffect(() => {
+    applyStorefrontAlignment()
+    const timers = [50, 250, 750, 1500].map((ms) => window.setTimeout(applyStorefrontAlignment, ms))
+    const observer = new MutationObserver(() => applyStorefrontAlignment())
+    const root = document.getElementById('root')
+    if (root) observer.observe(root, { childList: true, subtree: true })
+    window.addEventListener('resize', applyStorefrontAlignment)
+    window.addEventListener('locationchange', applyStorefrontAlignment)
+    window.addEventListener('popstate', applyStorefrontAlignment)
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+      observer.disconnect()
+      window.removeEventListener('resize', applyStorefrontAlignment)
+      window.removeEventListener('locationchange', applyStorefrontAlignment)
+      window.removeEventListener('popstate', applyStorefrontAlignment)
+    }
+  }, [])
+  return null
+}
 
 function DeployCheckBanner() {
   return (
@@ -30,7 +73,7 @@ function DeployCheckBanner() {
         pointerEvents: 'none',
       }}
     >
-      frontend deploy check {DEPLOY_CHECK_COMMIT}
+      frontend deploy check {DEPLOY_CHECK_COMMIT} · shell {STOREFRONT_SHELL_WIDTH}
     </div>
   )
 }
@@ -43,6 +86,7 @@ initGa4Analytics()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
+    <StorefrontAlignmentRuntime />
     <DeployCheckBanner />
   </React.StrictMode>,
 )
