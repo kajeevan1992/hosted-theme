@@ -6,21 +6,14 @@ import { LocationPageRouter, isLocationRoute } from './LocationPages';
 import { ProductLocationPage, isProductLocationRoute } from './ProductLocationPages';
 import CollectionPassPage from './CollectionPassPage';
 import DynamicSeoLandingPage from './DynamicSeoLandingPage';
+import CategoryLandingPage, { isCategoryLandingRoute } from './CategoryLandingPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-BUILD-50-SEO-PAGE-RENDERER-v2026-06-08';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-CATEGORY-LANDING-v2026-06-09';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
-  'business-cards',
-  'flyers',
-  'leaflets',
-  'posters',
-  'posters-large-format-prints',
-  'booklets',
   'stickers',
-  'labels',
   'banners',
-  'signage',
 ];
 
 function currentPath() {
@@ -110,6 +103,10 @@ export default function ConnectedApp() {
 
   if (launchPagePaths.includes(pathname)) {
     return <DynamicSeoWithFallback pathname={pathname} fallback={<LaunchPageRouter pathname={pathname} navigate={navigate} />} />;
+  }
+
+  if (isCategoryLandingRoute(pathname)) {
+    return <><LaunchSeo pathname={pathname} /><CategoryLandingPage pathname={pathname} /><BuildFingerprintBanner /></>;
   }
 
   if (looksLikeProductRoute(pathname)) {
