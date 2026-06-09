@@ -8,25 +8,34 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '8d422f3'
+const DEPLOY_CHECK_COMMIT = 'df7f48c'
 const DESKTOP_RAIL_MIN_WIDTH = 1024
-const DESKTOP_SHELL_MAX = 1360
 const DESKTOP_SHELL_GUTTER = 64
 
 function isDesktopRails() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_RAIL_MIN_WIDTH
 }
 
-function getCenteredShell() {
-  const width = Math.min(window.innerWidth - DESKTOP_SHELL_GUTTER, DESKTOP_SHELL_MAX)
-  const safeWidth = Math.max(900, Math.round(width))
-  const left = Math.max(16, Math.round((window.innerWidth - safeWidth) / 2))
-  const right = Math.round(left + safeWidth)
-  return { left, right, width: safeWidth }
+function findHeaderContentRail() {
+  const header = document.querySelector('#root header')
+  if (!header) return null
+  const buttons = Array.from(header.querySelectorAll('button'))
+  const logo = buttons.find((button) => String(button.textContent || '').replace(/\s+/g, '').includes('HOLOPRINT'))
+  const cart = buttons.find((button) => String(button.textContent || '').includes('£')) || buttons[buttons.length - 1]
+  if (!logo || !cart) return null
+  const logoRect = logo.getBoundingClientRect()
+  const cartRect = cart.getBoundingClientRect()
+  const rawWidth = Math.round(cartRect.right - logoRect.left)
+  const maxWidth = Math.max(900, window.innerWidth - DESKTOP_SHELL_GUTTER)
+  const width = Math.max(900, Math.min(rawWidth, maxWidth))
+  const left = Math.max(16, Math.round((window.innerWidth - width) / 2))
+  const right = Math.round(left + width)
+  return { left, right, width }
 }
 
 function clearDesktopRailStyles(root) {
   const selectors = [
+    'header > div.mx-auto.w-full',
     'section > div.mx-auto.w-full',
     'footer > div.mx-auto.w-full',
     'footer div.mx-auto.w-full',
@@ -40,6 +49,18 @@ function clearDesktopRailStyles(root) {
     delete el.dataset.holoAlignedRight
     delete el.dataset.holoAlignedMenu
   })
+}
+
+function applyShellStyles(el, shell) {
+  el.style.setProperty('box-sizing', 'border-box', 'important')
+  el.style.setProperty('max-width', 'none', 'important')
+  el.style.setProperty('width', `${shell.width}px`, 'important')
+  el.style.setProperty('margin-left', 'auto', 'important')
+  el.style.setProperty('margin-right', 'auto', 'important')
+  el.style.setProperty('padding-left', '0', 'important')
+  el.style.setProperty('padding-right', '0', 'important')
+  el.dataset.holoAlignedLeft = String(shell.left)
+  el.dataset.holoAlignedRight = String(shell.right)
 }
 
 function alignMegaMenus(root, shell) {
@@ -72,8 +93,11 @@ function applyStorefrontAlignment() {
     return { count: 0, width: 0, menuCount: 0 }
   }
 
-  const shell = getCenteredShell()
+  const shell = findHeaderContentRail()
+  if (!shell) return { count: 0, width: 0, menuCount: 0 }
+
   const selectors = [
+    'header > div.mx-auto.w-full',
     'section > div.mx-auto.w-full',
     'footer > div.mx-auto.w-full',
     'footer div.mx-auto.w-full',
@@ -82,18 +106,7 @@ function applyStorefrontAlignment() {
 
   let count = 0
   root.querySelectorAll(selectors.join(',')).forEach((node) => {
-    const el = node
-    const insideHeader = Boolean(el.closest('header'))
-    if (insideHeader) return
-    el.style.setProperty('box-sizing', 'border-box', 'important')
-    el.style.setProperty('max-width', 'none', 'important')
-    el.style.setProperty('width', `${shell.width}px`, 'important')
-    el.style.setProperty('margin-left', 'auto', 'important')
-    el.style.setProperty('margin-right', 'auto', 'important')
-    el.style.setProperty('padding-left', '0', 'important')
-    el.style.setProperty('padding-right', '0', 'important')
-    el.dataset.holoAlignedLeft = String(shell.left)
-    el.dataset.holoAlignedRight = String(shell.right)
+    applyShellStyles(node, shell)
     count += 1
   })
 
@@ -149,7 +162,7 @@ function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
         pointerEvents: 'none',
       }}
     >
-      frontend {DEPLOY_CHECK_COMMIT} · centered {railWidth}px · body {alignedCount} · menu {menuCount}
+      frontend {DEPLOY_CHECK_COMMIT} · shared rail {railWidth}px · shells {alignedCount} · menu {menuCount}
     </div>
   )
 }
