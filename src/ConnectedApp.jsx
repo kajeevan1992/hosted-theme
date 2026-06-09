@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AppLive from './AppLive';
+import EnhancedHomePage from './EnhancedHomePage';
 import ProductLiveConfigurator from './ProductLiveConfigurator';
 import { LaunchPageRouter, LaunchSeo, launchPagePaths } from './LaunchPages';
 import { LocationPageRouter, isLocationRoute } from './LocationPages';
@@ -8,7 +9,7 @@ import CollectionPassPage from './CollectionPassPage';
 import DynamicSeoLandingPage from './DynamicSeoLandingPage';
 import CategoryLandingPage, { isCategoryLandingRoute } from './CategoryLandingPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-CATEGORY-LANDING-v2026-06-09';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-ENHANCED-HOME-v2026-06-09';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -86,7 +87,7 @@ export default function ConnectedApp() {
   }, []);
 
   if (pathname === '/') {
-    return <><LaunchSeo pathname={pathname} /><AppLive /><BuildFingerprintBanner /></>;
+    return <><LaunchSeo pathname={pathname} /><EnhancedHomePage /><BuildFingerprintBanner /></>;
   }
 
   if (pathname === '/collection-pass') {
