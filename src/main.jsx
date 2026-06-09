@@ -7,8 +7,9 @@ import './mobile-responsive.css'
 import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
+import { installFulfillmentHeaderMount } from './fulfillmentHeaderMount'
 
-const DEPLOY_CHECK_COMMIT = 'df7f48c'
+const DEPLOY_CHECK_COMMIT = 'fulfilment-selector'
 const DESKTOP_RAIL_MIN_WIDTH = 1024
 const DESKTOP_SHELL_GUTTER = 64
 
@@ -170,6 +171,7 @@ function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
 installStorefrontAdapter()
 initStorefrontSeo()
 initGa4Analytics()
+installFulfillmentHeaderMount()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
