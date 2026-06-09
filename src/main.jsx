@@ -8,26 +8,21 @@ import installStorefrontAdapter from './storefrontAdapter'
 import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 
-const DEPLOY_CHECK_COMMIT = '5bf16d5'
+const DEPLOY_CHECK_COMMIT = '8d422f3'
 const DESKTOP_RAIL_MIN_WIDTH = 1024
+const DESKTOP_SHELL_MAX = 1360
+const DESKTOP_SHELL_GUTTER = 64
 
 function isDesktopRails() {
   return typeof window !== 'undefined' && window.innerWidth >= DESKTOP_RAIL_MIN_WIDTH
 }
 
-function findHeaderRails() {
-  const header = document.querySelector('#root header')
-  if (!header) return null
-  const buttons = Array.from(header.querySelectorAll('button'))
-  const logo = buttons.find((button) => String(button.textContent || '').replace(/\s+/g, '').includes('HOLOPRINT'))
-  const cart = buttons.find((button) => String(button.textContent || '').includes('£')) || buttons[buttons.length - 1]
-  if (!logo || !cart) return null
-  const logoRect = logo.getBoundingClientRect()
-  const cartRect = cart.getBoundingClientRect()
-  const left = Math.max(16, Math.round(logoRect.left))
-  const right = Math.min(window.innerWidth - 16, Math.round(cartRect.right))
-  const width = Math.max(900, right - left)
-  return { left, right, width }
+function getCenteredShell() {
+  const width = Math.min(window.innerWidth - DESKTOP_SHELL_GUTTER, DESKTOP_SHELL_MAX)
+  const safeWidth = Math.max(900, Math.round(width))
+  const left = Math.max(16, Math.round((window.innerWidth - safeWidth) / 2))
+  const right = Math.round(left + safeWidth)
+  return { left, right, width: safeWidth }
 }
 
 function clearDesktopRailStyles(root) {
@@ -47,17 +42,17 @@ function clearDesktopRailStyles(root) {
   })
 }
 
-function alignMegaMenus(root, rails) {
+function alignMegaMenus(root, shell) {
   let count = 0
   root.querySelectorAll('header .absolute.left-0.right-0.top-full.hidden.xl\\:block').forEach((node) => {
     const el = node
     const parentRect = (el.offsetParent || document.body).getBoundingClientRect()
-    const left = Math.round(rails.left - parentRect.left)
+    const left = Math.round(shell.left - parentRect.left)
     el.style.setProperty('left', `${left}px`, 'important')
     el.style.setProperty('right', 'auto', 'important')
-    el.style.setProperty('width', `${rails.width}px`, 'important')
+    el.style.setProperty('width', `${shell.width}px`, 'important')
     el.style.setProperty('max-width', 'none', 'important')
-    el.dataset.holoAlignedMenu = String(rails.width)
+    el.dataset.holoAlignedMenu = String(shell.width)
     count += 1
   })
   window.__holoAlignedMenuCount = count
@@ -77,9 +72,7 @@ function applyStorefrontAlignment() {
     return { count: 0, width: 0, menuCount: 0 }
   }
 
-  const rails = findHeaderRails()
-  if (!rails) return { count: 0, width: 0, menuCount: 0 }
-
+  const shell = getCenteredShell()
   const selectors = [
     'section > div.mx-auto.w-full',
     'footer > div.mx-auto.w-full',
@@ -94,20 +87,20 @@ function applyStorefrontAlignment() {
     if (insideHeader) return
     el.style.setProperty('box-sizing', 'border-box', 'important')
     el.style.setProperty('max-width', 'none', 'important')
-    el.style.setProperty('width', `${rails.width}px`, 'important')
-    el.style.setProperty('margin-left', `${rails.left}px`, 'important')
-    el.style.setProperty('margin-right', '0', 'important')
+    el.style.setProperty('width', `${shell.width}px`, 'important')
+    el.style.setProperty('margin-left', 'auto', 'important')
+    el.style.setProperty('margin-right', 'auto', 'important')
     el.style.setProperty('padding-left', '0', 'important')
     el.style.setProperty('padding-right', '0', 'important')
-    el.dataset.holoAlignedLeft = String(rails.left)
-    el.dataset.holoAlignedRight = String(rails.right)
+    el.dataset.holoAlignedLeft = String(shell.left)
+    el.dataset.holoAlignedRight = String(shell.right)
     count += 1
   })
 
-  const menuCount = alignMegaMenus(root, rails)
+  const menuCount = alignMegaMenus(root, shell)
   window.__holoAlignedShellCount = count
-  window.__holoAlignedRails = rails
-  return { count, width: rails.width, menuCount }
+  window.__holoAlignedRails = shell
+  return { count, width: shell.width, menuCount }
 }
 
 function StorefrontAlignmentRuntime() {
@@ -156,7 +149,7 @@ function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
         pointerEvents: 'none',
       }}
     >
-      frontend {DEPLOY_CHECK_COMMIT} · rails {railWidth}px · body {alignedCount} · menu {menuCount}
+      frontend {DEPLOY_CHECK_COMMIT} · centered {railWidth}px · body {alignedCount} · menu {menuCount}
     </div>
   )
 }
