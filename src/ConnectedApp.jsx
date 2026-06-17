@@ -9,12 +9,25 @@ import CollectionPassPage from './CollectionPassPage';
 import DynamicSeoLandingPage from './DynamicSeoLandingPage';
 import CategoryLandingPage, { isCategoryLandingRoute } from './CategoryLandingPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-ENHANCED-HOME-v2026-06-09';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-DYNAMIC-PRODUCT-SLUGS-v2026-06-17';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
-  'stickers',
-  'banners',
+  'business-card',
+  'standard-cards',
+  'cards',
+  'flyer',
+  'leaflet',
+  'poster',
+  'booklet',
+  'label',
+  'sticker',
+  'banner',
+  'sign',
+  'ncr',
+  'letterhead',
+  'compliment',
+  'notepad',
 ];
 
 function currentPath() {
@@ -22,10 +35,22 @@ function currentPath() {
   return window.location.pathname || '/';
 }
 
+function cleanSlug(pathname) {
+  return String(pathname || '').replace(/^\//, '').replace(/\/$/, '');
+}
+
 function looksLikeProductRoute(pathname) {
-  const slug = String(pathname || '').replace(/^\//, '').replace(/\/$/, '');
+  const slug = cleanSlug(pathname);
   if (!slug) return false;
   return PRODUCT_ROUTE_HINTS.some((hint) => slug.includes(hint));
+}
+
+function isPlainSlugRoute(pathname) {
+  const slug = cleanSlug(pathname);
+  if (!slug) return false;
+  if (slug.includes('/')) return false;
+  if (slug.startsWith('api')) return false;
+  return true;
 }
 
 function BuildFingerprintBanner() {
@@ -46,6 +71,10 @@ function navigate(path) {
 
 function DynamicSeoWithFallback({ pathname, fallback }) {
   return <><LaunchSeo pathname={pathname} /><DynamicSeoLandingPage pathname={pathname} navigate={navigate} fallback={fallback} /><BuildFingerprintBanner /></>;
+}
+
+function UnknownSlugFallback({ pathname }) {
+  return <DynamicSeoWithFallback pathname={pathname} fallback={<AppLive />} />;
 }
 
 export default function ConnectedApp() {
@@ -111,7 +140,11 @@ export default function ConnectedApp() {
   }
 
   if (looksLikeProductRoute(pathname)) {
-    return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} /><BuildFingerprintBanner /></>;
+    return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} showDiagnostic /><BuildFingerprintBanner /></>;
+  }
+
+  if (isPlainSlugRoute(pathname)) {
+    return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<UnknownSlugFallback pathname={pathname} />} showDiagnostic={false} /><BuildFingerprintBanner /></>;
   }
 
   return <DynamicSeoWithFallback pathname={pathname} fallback={<AppLive />} />;
