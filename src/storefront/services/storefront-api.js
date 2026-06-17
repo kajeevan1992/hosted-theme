@@ -84,18 +84,49 @@ function normalizeProductPayload(payload) {
   return payload;
 }
 
-export async function fetchStorefrontProduct(slug) {
-  if (!slug) {
+function cleanProductSlug(value = '') {
+  const clean = String(value || '')
+    .replace(/^\//, '')
+    .replace(/\?.*$/, '')
+    .replace(/#.*$/, '')
+    .replace(/\/$/, '')
+    .trim();
+  const segments = clean.split('/').filter(Boolean);
+  return segments[segments.length - 1] || clean;
+}
+
+function cleanFullPath(value = '') {
+  return String(value || '')
+    .replace(/^\//, '')
+    .replace(/\?.*$/, '')
+    .replace(/#.*$/, '')
+    .replace(/\/$/, '')
+    .trim();
+}
+
+export async function fetchStorefrontProduct(slug, options = {}) {
+  const productSlug = cleanProductSlug(slug);
+  const fullPath = cleanFullPath(options.fullPath || slug);
+
+  if (!productSlug) {
     throw new Error('Missing product slug');
   }
 
-  const cleanSlug = encodeURIComponent(String(slug).replace(/^\//, ''));
+  const cleanSlug = encodeURIComponent(productSlug);
+  const cleanPath = encodeURIComponent(fullPath);
   const endpoints = [
     `/api/internal/storefront/products/${cleanSlug}/resolved`,
     `/api/internal/catalog/products/${cleanSlug}`,
     `/api/internal/catalog/storefront-products/${cleanSlug}`,
     `/api/internal/catalog/storefront-products?slug=${cleanSlug}`,
   ];
+
+  if (fullPath && fullPath !== productSlug) {
+    endpoints.push(
+      `/api/internal/catalog/storefront-products?path=${cleanPath}`,
+      `/api/internal/catalog/storefront-products?slug=${cleanSlug}&path=${cleanPath}`,
+    );
+  }
 
   let lastError = null;
 
@@ -114,10 +145,10 @@ export async function fetchStorefrontProduct(slug) {
     }
   }
 
-  const fallback = getFallbackProduct(slug);
+  const fallback = getFallbackProduct(productSlug);
 
   if (fallback) {
-    console.warn('[storefront] API unavailable; using marked fallback product for slug:', slug, lastError);
+    console.warn('[storefront] API unavailable; using marked fallback product for slug:', productSlug, lastError);
     return { ...fallback, __isFallbackProduct: true, __apiError: lastError?.message || 'Unable to load API product' };
   }
 
