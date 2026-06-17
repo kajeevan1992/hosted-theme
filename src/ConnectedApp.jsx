@@ -9,7 +9,7 @@ import CollectionPassPage from './CollectionPassPage';
 import DynamicSeoLandingPage from './DynamicSeoLandingPage';
 import CategoryLandingPage, { isCategoryLandingRoute } from './CategoryLandingPage';
 
-const BUILD_FINGERPRINT = 'HOSTED-THEME-DYNAMIC-PRODUCT-SLUGS-v2026-06-17';
+const BUILD_FINGERPRINT = 'HOSTED-THEME-CATEGORY-PRODUCT-URLS-v2026-06-17';
 
 const PRODUCT_ROUTE_HINTS = [
   'standard-business-cards',
@@ -30,6 +30,19 @@ const PRODUCT_ROUTE_HINTS = [
   'notepad',
 ];
 
+const RESERVED_TOP_LEVEL_ROUTES = new Set([
+  'cart',
+  'checkout',
+  'account',
+  'login',
+  'auth',
+  'contact',
+  'collection-pass',
+  'artwork-upload',
+  'bespoke-quote',
+  'quote',
+]);
+
 function currentPath() {
   if (typeof window === 'undefined') return '/';
   return window.location.pathname || '/';
@@ -37,6 +50,10 @@ function currentPath() {
 
 function cleanSlug(pathname) {
   return String(pathname || '').replace(/^\//, '').replace(/\/$/, '');
+}
+
+function pathSegments(pathname) {
+  return cleanSlug(pathname).split('/').filter(Boolean);
 }
 
 function looksLikeProductRoute(pathname) {
@@ -50,6 +67,17 @@ function isPlainSlugRoute(pathname) {
   if (!slug) return false;
   if (slug.includes('/')) return false;
   if (slug.startsWith('api')) return false;
+  if (RESERVED_TOP_LEVEL_ROUTES.has(slug)) return false;
+  return true;
+}
+
+function isCategoryProductRoute(pathname) {
+  const segments = pathSegments(pathname);
+  if (segments.length !== 2) return false;
+  const [categorySlug, productSlug] = segments;
+  if (!categorySlug || !productSlug) return false;
+  if (categorySlug === 'api' || categorySlug.startsWith('_')) return false;
+  if (RESERVED_TOP_LEVEL_ROUTES.has(categorySlug)) return false;
   return true;
 }
 
@@ -133,6 +161,10 @@ export default function ConnectedApp() {
 
   if (launchPagePaths.includes(pathname)) {
     return <DynamicSeoWithFallback pathname={pathname} fallback={<LaunchPageRouter pathname={pathname} navigate={navigate} />} />;
+  }
+
+  if (isCategoryProductRoute(pathname)) {
+    return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<UnknownSlugFallback pathname={pathname} />} showDiagnostic={false} /><BuildFingerprintBanner /></>;
   }
 
   if (isCategoryLandingRoute(pathname)) {
