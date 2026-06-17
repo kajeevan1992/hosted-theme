@@ -7,8 +7,12 @@ function AlignedStatusShell({ children }) {
   return <div className="mx-auto w-full max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>;
 }
 
-export default function ProductLiveConfigurator({ pathname }) {
+export default function ProductLiveConfigurator({ pathname, fallback = null, showDiagnostic = true }) {
   const { loading, error, product, slug } = useStorefrontProduct(pathname);
+
+  if (!loading && error && fallback && !showDiagnostic) {
+    return fallback;
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F8FC]">
