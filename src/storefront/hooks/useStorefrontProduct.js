@@ -4,10 +4,23 @@ import { fetchStorefrontProduct } from '../services/storefront-api';
 import mapBackendProductToStorefrontPayload from '../services/productPayloadMapper';
 
 function normalizeSlug(pathname = '') {
+  const cleanPath = pathname
+    .replace(/^\//, '')
+    .replace(/\?.*$/, '')
+    .replace(/#.*$/, '')
+    .replace(/\/$/, '')
+    .trim();
+
+  const segments = cleanPath.split('/').filter(Boolean);
+  return segments[segments.length - 1] || '';
+}
+
+function normalizeFullPath(pathname = '') {
   return pathname
     .replace(/^\//, '')
     .replace(/\?.*$/, '')
     .replace(/#.*$/, '')
+    .replace(/\/$/, '')
     .trim();
 }
 
@@ -23,6 +36,7 @@ function fallbackForSlug(slug) {
 
 export function useStorefrontProduct(pathname) {
   const slug = useMemo(() => normalizeSlug(pathname), [pathname]);
+  const fullPath = useMemo(() => normalizeFullPath(pathname), [pathname]);
   const fallbackProduct = useMemo(() => fallbackForSlug(slug), [slug]);
 
   const [state, setState] = useState({
@@ -54,7 +68,7 @@ export function useStorefrontProduct(pathname) {
       });
 
       try {
-        const backendProduct = await fetchStorefrontProduct(slug);
+        const backendProduct = await fetchStorefrontProduct(slug, { fullPath });
         if (!active) return;
 
         const mapped = mapBackendProductToStorefrontPayload(backendProduct);
@@ -88,10 +102,11 @@ export function useStorefrontProduct(pathname) {
     return () => {
       active = false;
     };
-  }, [slug, fallbackProduct]);
+  }, [slug, fullPath, fallbackProduct]);
 
   return {
     slug,
+    fullPath,
     ...state,
   };
 }
