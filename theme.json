@@ -1,0 +1,13 @@
+{
+  "name": "Atlantis Print Hosted Theme",
+  "version": "1.0.0",
+  "themeKey": "atlantis-print-hosted",
+  "description": "Hosted print storefront theme using internal storefront services while keeping the existing style and layout.",
+  "previewImage": "public/preview.png",
+  "entry": "src/main.jsx",
+  "buildCommand": "npm run build:spa",
+  "framework": "vite-react",
+  "themeType": "hosted",
+  "apiMode": "internal-storefront-services",
+  "supports": ["hero", "product-grid", "category-carousel", "text-image", "faq", "contact-cta", "collection-points"]
+}
