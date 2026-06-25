@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './ConnectedApp'
+import HostedThemeRuntime from './hostedThemeRuntime'
 import './index.css'
 import './storefront-alignment.css'
 import './mobile-responsive.css'
@@ -9,7 +10,7 @@ import { initStorefrontSeo } from './seo/storefrontSeo'
 import { initGa4Analytics } from './analytics/ga4'
 import { installFulfillmentHeaderMount } from './fulfillmentHeaderMount'
 
-const DEPLOY_CHECK_COMMIT = 'fulfilment-selector'
+const DEPLOY_CHECK_COMMIT = 'hosted-theme-renderer'
 const DESKTOP_RAIL_MIN_WIDTH = 1024
 const DESKTOP_SHELL_GUTTER = 64
 
@@ -144,25 +145,7 @@ function DeployCheckBanner({ alignedCount = 0, railWidth = 0, menuCount = 0 }) {
   if (typeof window !== 'undefined' && window.innerWidth < DESKTOP_RAIL_MIN_WIDTH) return null
   if (typeof window !== 'undefined' && !window.location.search.includes('deployCheck=1')) return null
   return (
-    <div
-      style={{
-        position: 'fixed',
-        right: 12,
-        bottom: 12,
-        zIndex: 2147483647,
-        background: '#111827',
-        color: '#ffffff',
-        fontFamily: 'Inter, system-ui, sans-serif',
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: '0.04em',
-        padding: '8px 10px',
-        borderRadius: 999,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.22)',
-        border: '1px solid rgba(255,255,255,0.18)',
-        pointerEvents: 'none',
-      }}
-    >
+    <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 2147483647, background: '#111827', color: '#ffffff', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', padding: '8px 10px', borderRadius: 999, boxShadow: '0 10px 30px rgba(0,0,0,0.22)', border: '1px solid rgba(255,255,255,0.18)', pointerEvents: 'none' }}>
       frontend {DEPLOY_CHECK_COMMIT} · shared rail {railWidth}px · shells {alignedCount} · menu {menuCount}
     </div>
   )
@@ -176,6 +159,7 @@ installFulfillmentHeaderMount()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
+    <HostedThemeRuntime />
     <StorefrontAlignmentRuntime />
   </React.StrictMode>,
 )
