@@ -1,8 +1,8 @@
-const DEFAULT_BASE_URL = 'http://yccfmd4h13a1y6hi691si73r.13.61.22.39.sslip.io';
+const DEFAULT_BASE_URL = '';
 
 function envBaseUrl() {
   try {
-    return import.meta?.env?.VITE_API_URL || import.meta?.env?.VITE_BACKEND_URL || import.meta?.env?.VITE_INTERNAL_API_BASE_URL || '';
+    return import.meta?.env?.VITE_INTERNAL_API_BASE_URL || import.meta?.env?.VITE_INTERNAL_STOREFRONT_API_BASE || import.meta?.env?.VITE_BACKEND_URL || import.meta?.env?.VITE_API_URL || '';
   } catch {
     return '';
   }
@@ -106,7 +106,7 @@ export function installStorefrontAdapter() {
   const existing = window.storefront || {};
   window.storefront = {
     ...existing,
-    _config: { baseUrl: getBaseUrl(), mode: getBaseUrl() ? 'configured-backend' : 'same-origin-hosted-theme' },
+    _config: { baseUrl: getBaseUrl(), mode: getBaseUrl() ? 'configured-internal-backend' : 'same-origin-hosted-theme' },
     products: {
       ...existing.products,
       list: (params = {}) => request(`/api/internal/catalog/storefront-products${toQuery({ includeDrafts: true, ...params })}`),
