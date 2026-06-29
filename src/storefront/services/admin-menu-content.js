@@ -1,11 +1,5 @@
 function cleanSlug(value = '') {
-  return String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/^\/+/, '')
-    .replace(/\/+$/, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  return String(value || '').toLowerCase().trim().replace(/^\/+/, '').replace(/\/+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 function queryParam(name) {
@@ -13,62 +7,35 @@ function queryParam(name) {
   return new URLSearchParams(window.location.search).get(name) || '';
 }
 
-function rememberValue(key, value) {
+function remember(key, value) {
   if (typeof window === 'undefined') return value || '';
   if (value) window.localStorage?.setItem(key, value);
   return value || window.localStorage?.getItem(key) || '';
 }
 
-function menuContext() {
+function context() {
   return {
-    tenantId: rememberValue('holo:tenantId', queryParam('tenantId')) || rememberValue('holo:tenant-id', queryParam('tenantId')),
-    tenantSlug: rememberValue('holo:tenantSlug', queryParam('tenantSlug')) || rememberValue('holo:tenant-slug', queryParam('tenantSlug')),
-    channelSlug: rememberValue('holo:channelSlug', queryParam('channelSlug') || queryParam('storeSlug')) || rememberValue('holo:channel-slug', queryParam('channelSlug') || queryParam('storeSlug')) || 'default-store',
+    tenantId: remember('holo:tenantId', queryParam('tenantId')) || remember('holo:tenant-id', queryParam('tenantId')),
+    tenantSlug: remember('holo:tenantSlug', queryParam('tenantSlug')) || remember('holo:tenant-slug', queryParam('tenantSlug')),
+    channelSlug: remember('holo:channelSlug', queryParam('channelSlug') || queryParam('storeSlug')) || remember('holo:channel-slug', queryParam('channelSlug') || queryParam('storeSlug')) || 'default-store',
   };
 }
 
-function normalisePath(value = '/') {
+function path(value = '/') {
   const text = String(value || '').trim();
   if (!text) return '/';
-  if (text.startsWith('http://') || text.startsWith('https://') || text.startsWith('mailto:') || text.startsWith('tel:')) return text;
+  if (/^(https?:|mailto:|tel:)/i.test(text)) return text;
   return text.startsWith('/') ? text : `/${text}`;
 }
 
-async function readJson(url) {
-  const context = menuContext();
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      ...(context.tenantId || context.tenantSlug ? { 'X-Tenant-Id': context.tenantId || context.tenantSlug, 'X-Print-Tenant': context.tenantId || context.tenantSlug } : {}),
-      ...(context.channelSlug ? { 'X-Site-Id': context.channelSlug, 'X-Print-Store': context.channelSlug } : {}),
-    },
-    credentials: 'include',
-    cache: 'no-store',
-  });
-  if (!response.ok) throw new Error(`Request failed ${response.status}`);
-  const payload = await response.json().catch(() => ({}));
-  if (payload?.ok === false) throw new Error(payload.error || 'Admin config request failed');
-  return payload.data || payload;
-}
-
-function publicMenuUrl(base) {
-  const context = menuContext();
-  const params = new URLSearchParams();
-  if (context.tenantId) params.set('tenantId', context.tenantId);
-  if (context.tenantSlug) params.set('tenantSlug', context.tenantSlug);
-  if (context.channelSlug) params.set('channelSlug', context.channelSlug);
-  const query = params.toString();
-  return `${base}/api/internal/storefront/menu-v2${query ? `?${query}` : ''}`;
-}
-
-function normaliseMenuItem(raw = {}, index = 0) {
+function item(raw = {}, index = 0) {
   const label = raw.label || raw.name || raw.title || raw.menuLabel || raw.path || `Menu ${index + 1}`;
   return {
     ...raw,
     id: String(raw.id || raw.slug || raw.key || `menu-${index}`),
     slug: cleanSlug(raw.slug || label || raw.id || `menu-${index}`),
     label,
-    path: normalisePath(raw.path || raw.href || raw.url || raw.link || '/'),
+    path: path(raw.path || raw.href || raw.url || raw.link || '/'),
     enabled: raw.enabled !== false && raw.status !== 'hidden' && raw.status !== 'disabled',
     order: Number(raw.order || raw.sortOrder || raw.position || index + 1),
     parentId: String(raw.parentId || raw.parent || raw.parentKey || ''),
@@ -76,55 +43,44 @@ function normaliseMenuItem(raw = {}, index = 0) {
     group: raw.group || raw.column || raw.columnTitle || raw.menuGroup || 'Menu',
     description: raw.description || raw.featureBody || '',
     imageUrl: raw.imageUrl || raw.image || '',
-    children: Array.isArray(raw.children)
-      ? raw.children.map((child, childIndex) => normaliseMenuItem(child, childIndex)).filter((child) => child.enabled)
-      : Array.isArray(raw.items)
-        ? raw.items.map((child, childIndex) => normaliseMenuItem(child, childIndex)).filter((child) => child.enabled)
-        : [],
+    children: Array.isArray(raw.children) ? raw.children.map(item).filter((child) => child.enabled) : [],
   };
 }
 
-export async function loadAdminMenuAndContent(base) {
-  const [publicMenuResult, legacyMenuResult, contentResult] = await Promise.allSettled([
-    readJson(publicMenuUrl(base)),
-    readJson(`${base}/api/internal/config/storefront-menu-builder/items`),
-    readJson(`${base}/api/internal/config/content-records/items`),
-  ]);
-
-  const publicItems = publicMenuResult.status === 'fulfilled' && Array.isArray(publicMenuResult.value.items)
-    ? publicMenuResult.value.items
-    : [];
-  const legacyItems = legacyMenuResult.status === 'fulfilled'
-    ? (Array.isArray(legacyMenuResult.value.items) ? legacyMenuResult.value.items : Array.isArray(legacyMenuResult.value) ? legacyMenuResult.value : [])
-    : [];
-
-  const menuItems = (publicItems.length ? publicItems : legacyItems)
-    .map(normaliseMenuItem)
-    .filter((item) => item.enabled && item.label && item.path)
-    .sort((a, b) => Number(a.order || 999) - Number(b.order || 999));
-
-  const categoryContent = contentResult.status === 'fulfilled' && Array.isArray(contentResult.value.items)
-    ? contentResult.value.items
-        .filter((item) => item.kind === 'category' && (item.status === 'published' || item.published === true))
-        .map((item) => ({ ...item, slug: cleanSlug(item.slug || item.canonicalPath || item.title) }))
-        .filter((item) => item.slug)
-    : [];
-
-  return { menuItems, categoryContent };
-}
-
-export function applyCategoryContent(categories, categoryContent) {
-  const bySlug = new Map((categoryContent || []).map((item) => [item.slug, item]));
-  return categories.map((category) => {
-    const content = bySlug.get(category.slug) || bySlug.get(`${category.slug}-category`);
-    if (!content) return category;
-    return { ...category, content, name: content.menuLabel || category.name, description: content.menuDescription || content.summary || category.description, thumbnail: content.heroImage || category.thumbnail };
+async function readPublicMenu(base) {
+  const c = context();
+  const params = new URLSearchParams();
+  if (c.tenantId) params.set('tenantId', c.tenantId);
+  if (c.tenantSlug) params.set('tenantSlug', c.tenantSlug);
+  if (c.channelSlug) params.set('channelSlug', c.channelSlug);
+  const response = await fetch(`${base}/api/internal/storefront/menu-v2?${params.toString()}`, {
+    headers: {
+      Accept: 'application/json',
+      ...(c.tenantId || c.tenantSlug ? { 'X-Tenant-Id': c.tenantId || c.tenantSlug, 'X-Print-Tenant': c.tenantId || c.tenantSlug } : {}),
+      ...(c.channelSlug ? { 'X-Site-Id': c.channelSlug, 'X-Print-Store': c.channelSlug } : {}),
+    },
+    credentials: 'omit',
+    cache: 'no-store',
   });
+  if (!response.ok) throw new Error(`Menu request failed ${response.status}`);
+  const payload = await response.json().catch(() => ({}));
+  if (payload?.ok === false) throw new Error(payload.error || 'Menu request failed');
+  return payload.data || payload;
 }
 
-function linkFromItem(item) {
-  if (Array.isArray(item)) return [String(item[0] || 'Untitled'), normalisePath(item[1] || '/')];
-  return [String(item.label || item.name || item.title || item.path || 'Untitled'), normalisePath(item.path || item.href || item.url || item.link || '/')];
+export async function loadAdminMenuAndContent(base) {
+  const data = await readPublicMenu(base);
+  const raw = Array.isArray(data.items) ? data.items : [];
+  const menuItems = raw.map(item).filter((row) => row.enabled && row.label && row.path).sort((a, b) => a.order - b.order);
+  return { menuItems, categoryContent: [] };
+}
+
+export function applyCategoryContent(categories) {
+  return categories;
+}
+
+function linkFromItem(row) {
+  return [String(row.label || row.name || row.title || 'Menu item'), path(row.path || row.href || row.url || '/')];
 }
 
 function uniqueChildren(children = []) {
@@ -143,47 +99,27 @@ function uniqueChildren(children = []) {
 export function buildNavFromMenuItems(catalog) {
   const menuItems = catalog?.menuItems || [];
   if (!menuItems.length) return null;
-
-  const products = catalog?.products || [];
   const byParent = new Map();
-  menuItems.forEach((item) => {
-    if (!item.parentId && !item.parentSlug) return;
-    [item.parentId, item.parentSlug].filter(Boolean).forEach((key) => {
-      byParent.set(String(key), [...(byParent.get(String(key)) || []), item]);
-    });
+  menuItems.forEach((row) => {
+    if (!row.parentId && !row.parentSlug) return;
+    [row.parentId, row.parentSlug].filter(Boolean).forEach((key) => byParent.set(String(key), [...(byParent.get(String(key)) || []), row]));
   });
-
-  return menuItems
-    .filter((item) => !item.parentId && !item.parentSlug)
-    .slice(0, 10)
-    .map((item) => {
-      const categorySlug = cleanSlug(item.categorySlug || item.path);
-      const categoryProducts = products.filter((product) => product.categorySlug === categorySlug).slice(0, 8);
-      const children = uniqueChildren([
-        ...(Array.isArray(item.children) ? item.children : []),
-        ...(byParent.get(String(item.id)) || []),
-        ...(byParent.get(String(item.slug)) || []),
-        ...(byParent.get(cleanSlug(item.label)) || []),
-      ]).filter((child) => String(child.id || '') !== String(item.id || '') && cleanSlug(child.label || '') !== cleanSlug(item.label || ''));
-
-      const childLinks = children.map(linkFromItem);
-      const productLinks = categoryProducts.map((product) => [product.title, product.path]);
-      const primaryLinks = childLinks.length ? childLinks : productLinks;
-      const columns = [];
-      if (primaryLinks.length) columns.push({ title: childLinks.length ? 'Menu' : 'Products', links: primaryLinks.slice(0, 8) });
-      columns.push({ title: 'Support', links: [['Artwork help', '/artwork-upload'], ['Custom quote', '/bespoke-quote'], ['Cart', '/cart']] });
-      if (primaryLinks.slice(8).length) columns.push({ title: 'More', links: primaryLinks.slice(8, 16) });
-
-      return {
-        label: item.label,
-        path: item.path,
-        feature: {
-          title: item.featureTitle || item.label,
-          body: item.description || item.featureBody || 'Browse menu links.',
-          image: item.imageUrl || item.image || categoryProducts[0]?.image || '/images/hero-slide-2.svg',
-          cta: item.ctaLabel || `View ${item.label}`,
-        },
-        columns,
-      };
-    });
+  return menuItems.filter((row) => !row.parentId && !row.parentSlug).slice(0, 10).map((row) => {
+    const children = uniqueChildren([
+      ...(Array.isArray(row.children) ? row.children : []),
+      ...(byParent.get(String(row.id)) || []),
+      ...(byParent.get(String(row.slug)) || []),
+      ...(byParent.get(cleanSlug(row.label)) || []),
+    ]).filter((child) => String(child.id || '') !== String(row.id || '') && cleanSlug(child.label || '') !== cleanSlug(row.label || ''));
+    const childLinks = children.map(linkFromItem);
+    const columns = [];
+    if (childLinks.length) columns.push({ title: 'Menu', links: childLinks.slice(0, 8) });
+    columns.push({ title: 'Support', links: [['Artwork help', '/artwork-upload'], ['Custom quote', '/bespoke-quote'], ['Cart', '/cart']] });
+    return {
+      label: row.label,
+      path: row.path,
+      feature: { title: row.label, body: row.description || 'Browse menu links.', image: row.imageUrl || row.image || '/images/hero-slide-2.svg', cta: `View ${row.label}` },
+      columns,
+    };
+  });
 }
