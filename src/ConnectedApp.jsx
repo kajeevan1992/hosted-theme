@@ -46,7 +46,7 @@ export default function ConnectedApp() {
   if (pathname === '/collection-pass') return <><CollectionPassPage navigate={navigate} /><BuildFingerprintBanner /></>;
   if (isProductLocationRoute(pathname)) return <DynamicSeoWithFallback pathname={pathname} fallback={<ProductLocationPage pathname={pathname} navigate={navigate} />} />;
   if (isLocationRoute(pathname)) return <DynamicSeoWithFallback pathname={pathname} fallback={<LocationPageRouter pathname={pathname} navigate={navigate} />} />;
-  if (launchPagePaths.includes(pathname)) return <DynamicSeoWithFallback pathname={pathname} fallback={<LaunchPageRouter pathname={pathname} />} />;
+  if (launchPagePaths.includes(pathname)) return <DynamicSeoWithFallback pathname={pathname} fallback={<LaunchPageRouter pathname={pathname} navigate={navigate} />} />;
   if (twoSegment(pathname)) return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<UnknownSlugFallback pathname={pathname} />} showDiagnostic={false} /><BuildFingerprintBanner /></>;
   if (isCategoryLandingRoute(pathname)) return <><LaunchSeo pathname={pathname} /><CategoryLandingPage pathname={pathname} /><BuildFingerprintBanner /></>;
   if (looksProduct(pathname)) return <><LaunchSeo pathname={pathname} /><ProductLiveConfigurator pathname={pathname} fallback={<AppLive />} showDiagnostic /><BuildFingerprintBanner /></>;
